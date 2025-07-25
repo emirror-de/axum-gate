@@ -171,7 +171,7 @@ You can use them like any other extension:
 async fn reporter(Extension(user): Extension<Account<Role, Group>>) -> Result<String, ()> {
     Ok(format!(
         "Hello {}, your roles are {:?} and you are member of groups {:?}!",
-        user.account_id, user.roles, user.groups
+        user.user_id, user.roles, user.groups
     ))
 }
 ```
