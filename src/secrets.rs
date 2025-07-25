@@ -31,7 +31,7 @@ impl Secret {
             .hash_value(plain_secret)
             .map_err(|e| Error::Hashing(e.to_string()))?;
         Ok(Self {
-            account_id: account_id.clone(),
+            account_id: *account_id,
             secret,
         })
     }

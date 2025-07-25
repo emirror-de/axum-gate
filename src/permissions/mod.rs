@@ -83,16 +83,16 @@ async fn dynamic_permission_set() {
         Some("read:dir:path".to_string())
     );
     assert_eq!(
-        set.permission_index(&"write:file:path".to_string())
+        set.permission_index("write:file:path")
             .await
             .unwrap(),
         Some(1)
     );
-    set.append_permission(&"write:file:path".to_string())
+    set.append_permission("write:file:path")
         .await
         .unwrap();
     assert_eq!(
-        set.permission_index(&"write:file:path".to_string())
+        set.permission_index("write:file:path")
             .await
             .unwrap(),
         Some(1)

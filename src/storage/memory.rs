@@ -124,7 +124,7 @@ impl From<Vec<Secret>> for MemorySecretStorage {
     fn from(value: Vec<Secret>) -> Self {
         let mut store = HashMap::with_capacity(value.len());
         value.into_iter().for_each(|v| {
-            store.insert(v.account_id.clone(), v);
+            store.insert(v.account_id, v);
         });
         let store = Arc::new(RwLock::new(store));
         Self { store }

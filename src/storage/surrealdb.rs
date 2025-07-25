@@ -143,7 +143,7 @@ where
     async fn delete_secret(&self, id: &Uuid) -> Result<bool> {
         self.use_ns_db().await?;
         let record_id =
-            RecordId::from_table_key(&self.scope_settings.table_names.credentials, id.clone());
+            RecordId::from_table_key(&self.scope_settings.table_names.credentials, *id);
         let result: Option<Secret> = self
             .db
             .delete(record_id)
@@ -208,7 +208,7 @@ fn secret_storage() {
         let creds_storage = SurrealDbStorage::new(db, DatabaseScope::default());
         let id = Uuid::now_v7();
 
-        let creds = Secret::new(&id, &"admin_password".to_string(), Argon2Hasher).unwrap();
+        let creds = Secret::new(&id, "admin_password", Argon2Hasher).unwrap();
 
         creds_storage.store_secret(creds).await.unwrap();
 

@@ -77,7 +77,7 @@ impl<CustomClaims> JwtClaims<CustomClaims> {
 
     /// Checks whether the issuer equals to the given value.
     pub fn has_issuer(&self, issuer: &str) -> bool {
-        &self.registered_claims.issuer == issuer
+        self.registered_claims.issuer == issuer
     }
 }
 

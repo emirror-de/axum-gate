@@ -18,8 +18,8 @@ for any specific use case. It provides a high-level API for role based access wi
 ## Planned features
 
 - Simple to use Bearer auth layer with support for rotating key set or using a custom function
-(for node to node authentication, see
-[DynamicPermissionService](crate::services::DynamicPermissionService))
+  (for node to node authentication, see
+  [DynamicPermissionService](crate::services::DynamicPermissionService))
 
 # Introduction
 
