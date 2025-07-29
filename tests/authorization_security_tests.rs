@@ -3,7 +3,6 @@ use axum_gate::jwt::{JsonWebToken, JsonWebTokenOptions, JwtClaims, RegisteredCla
 use axum_gate::services::AccountInsertService;
 use axum_gate::storage::memory::{MemoryAccountStorage, MemorySecretStorage};
 use axum_gate::{Account, Credentials, Gate, Group, Role, cookie};
-use http::header;
 
 use std::sync::Arc;
 
@@ -12,6 +11,7 @@ use axum::extract::{Extension, Json};
 use axum::http::{self, Request, StatusCode};
 use axum::routing::{Router, get, post};
 use chrono::{TimeDelta, Utc};
+use http::header;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use tower::Service;
 
@@ -475,73 +475,5 @@ mod input_validation_tests {
                 "Unicode credentials should be handled safely"
             );
         }
-    }
-}
-
-/// Tests for timing attack protection (informational - may be flaky in CI environments)
-mod timing_attack_tests {
-    use super::*;
-    use std::time::Instant;
-
-    #[tokio::test]
-    #[ignore] // Timing tests can be flaky in CI environments
-    async fn test_login_timing_consistency() {
-        let mut app = setup_test_app().await;
-
-        // Test login timing for existing vs non-existing users
-        // to ensure no timing information leakage
-        
-        let existing_user_creds = Credentials::new(&"user@test.com".to_string(), "wrong_password");
-        let nonexistent_user_creds = Credentials::new(&"nonexistent@test.com".to_string(), "wrong_password");
-
-        // Measure timing for existing user with wrong password
-        let start = Instant::now();
-        let _response1 = app
-            .call(
-                Request::builder()
-                    .method(http::Method::POST)
-                    .uri("/login")
-                    .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                    .body(Body::from(serde_json::to_string(&existing_user_creds).unwrap()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        let existing_user_time = start.elapsed();
-
-        // Measure timing for non-existent user
-        let start = Instant::now();
-        let _response2 = app
-            .call(
-                Request::builder()
-                    .method(http::Method::POST)
-                    .uri("/login")
-                    .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                    .body(Body::from(serde_json::to_string(&nonexistent_user_creds).unwrap()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        let nonexistent_user_time = start.elapsed();
-
-        // Allow for some variation but not excessive timing differences
-        // In a real implementation, you might want to add artificial delays to normalize timing
-        let timing_ratio = if existing_user_time > nonexistent_user_time {
-            existing_user_time.as_millis() as f64 / (nonexistent_user_time.as_millis().max(1)) as f64
-        } else {
-            nonexistent_user_time.as_millis() as f64 / (existing_user_time.as_millis().max(1)) as f64
-        };
-
-        // This is more of an informational test - significant timing differences
-        // could indicate potential timing attack vulnerabilities
-        println!(
-            "Timing analysis: existing user: {}ms, non-existing user: {}ms, ratio: {}", 
-            existing_user_time.as_millis(), 
-            nonexistent_user_time.as_millis(),
-            timing_ratio
-        );
-
-        // For this test to be meaningful in production, you would want to
-        // implement constant-time comparison or add artificial delays
     }
 }

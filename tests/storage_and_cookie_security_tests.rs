@@ -1,12 +1,14 @@
 use axum_gate::cookie::CookieBuilder; 
 use axum_gate::storage::memory::{MemoryAccountStorage, MemorySecretStorage};
-use axum_gate::services::{AccountInsertService, AccountStorageService, SecretStorageService, CredentialsVerifierService};
+use axum_gate::services::{AccountInsertService, AccountDeleteService, AccountStorageService, SecretStorageService, CredentialsVerifierService};
 use axum_gate::hashing::{Argon2Hasher, VerificationResult};
 use axum_gate::secrets::Secret;
 use axum_gate::utils::AccessHierarchy;
 use axum_gate::{Account, Credentials, Group, Role};
-use uuid::Uuid;
+
 use std::sync::Arc;
+
+use uuid::Uuid;
 
 /// Tests for cookie security attributes and handling
 mod cookie_security_tests {
@@ -119,7 +121,7 @@ mod storage_security_tests {
         });
 
         // Wait for both tasks to complete
-        let (result1, result2) = tokio::try_join!(handle1, handle2).unwrap();
+        let (_result1, _result2) = tokio::try_join!(handle1, handle2).unwrap();
         
         // Verify both accounts were stored
         assert!(storage.query_account_by_user_id("user1@example.com").await.unwrap().is_some());
@@ -182,17 +184,19 @@ mod storage_security_tests {
             .unwrap()
             .unwrap();
 
-        let user_id = &account.user_id;
+        let user_id = account.user_id.clone();
 
         // Verify account exists
-        assert!(account_storage.query_account_by_user_id(user_id).await.unwrap().is_some());
+        assert!(account_storage.query_account_by_user_id(&user_id).await.unwrap().is_some());
 
-        // Delete the account by user_id
-        account_storage.delete_account(user_id).await.unwrap();
-        secret_storage.delete_secret(&account.account_id).await.unwrap();
+        // Delete the account using AccountDeleteService
+        AccountDeleteService::delete(account)
+            .from_storages(Arc::clone(&account_storage), Arc::clone(&secret_storage))
+            .await
+            .unwrap();
 
         // Verify account is deleted
-        assert!(account_storage.query_account_by_user_id(user_id).await.unwrap().is_none());
+        assert!(account_storage.query_account_by_user_id(&user_id).await.unwrap().is_none());
     }
 
     #[tokio::test]
@@ -288,12 +292,6 @@ mod access_control_security_tests {
             Write = 1,
             Delete = 2,
         }
-
-        let _account = Account::new(
-            "user@example.com",
-            &[Role::User],
-            &[Group::new("users")]
-        );
 
         // Test permission conversion
         let read_perm: u32 = TestPermission::Read.into();
