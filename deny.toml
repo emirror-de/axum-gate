@@ -10,3 +10,9 @@ allow = ["MIT", "Apache-2.0", "Unicode-3.0", "ISC", "BSD-3-Clause", "BSD-2-Claus
 [[advisories.ignore]]
 id = "RUSTSEC-2024-0436"
 reason = "paste is only a transitive dep via surrealdb; awaiting upstream to drop/replace it."
+
+# Ignore RUSTSEC-2023-0071 as it relates to aws-lc-rs but the current version has fixed it.
+# Users preferring to avoid this entirely can use the rust_crypto feature (default).
+[[advisories.ignore]]
+id = "RUSTSEC-2023-0071"
+reason = "The aws-lc-rs backend has addressed this vulnerability in current versions. Users wanting to avoid it completely can use the rust_crypto feature (which is now default)."

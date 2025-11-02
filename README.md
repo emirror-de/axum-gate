@@ -33,6 +33,7 @@ Optional features:
 - audit-logging — structured audit events
 - prometheus — metrics for audit (implies audit-logging)
 - insecure-fast-hash — faster Argon2 preset for development only
+- aws_lc_rs — Use AWS Libcrypto for JWT cryptographic operations
 
 ## Core concepts
 
@@ -55,6 +56,37 @@ Optional features:
   - Optional SurrealDB / SeaORM backends via feature flags
 - JWT codec
   - codecs::jwt::JsonWebToken with JsonWebTokenOptions (use persistent keys in production)
+
+## Cryptographic Backend Selection
+
+This crate supports two cryptographic backends for JWT operations:
+
+| Backend | Default | Description |
+|---------|---------|-------------|
+| `rust_crypto` | ✅ | Pure Rust implementation, works on all platforms without system dependencies |
+| `aws_lc_rs` | ❌ | AWS Libcrypto implementation, potentially faster on some platforms |
+
+### Using the Default Backend (rust_crypto)
+
+The crate uses `rust_crypto` by default, which requires no additional setup:
+
+```toml
+[dependencies]
+axum-gate = "1" # Uses rust_crypto by default
+```
+
+### Switching to AWS Libcrypto (aws_lc_rs)
+
+To use the AWS Libcrypto backend for potentially better performance:
+
+```toml
+[dependencies]
+axum-gate = { version = "1", default-features = false, features = ["aws_lc_rs"] }
+```
+
+Note: The `aws_lc_rs` backend may require additional build tools depending on your platform. 
+See the [aws-lc-rs build documentation](https://github.com/aws/aws-lc-rs/blob/main/aws-lc-rs/README.md#build) for details.
+
 
 ## Security
 

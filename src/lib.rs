@@ -36,6 +36,7 @@
 //! - `audit-logging` — emit structured audit events
 //! - `prometheus` — export metrics for audit logging (implies `audit-logging`)
 //! - `insecure-fast-hash` — faster Argon2 preset for development only (opt-in for release, not recommended)
+//! - `aws_lc_rs`: Uses AWS Libcrypto for JWT cryptographic operations
 //!
 //!
 //! For common integration issues and debugging tips, [see the Troubleshooting guide](https://github.com/emirror-de/axum-gate/blob/nightly/TROUBLESHOOTING.md).

@@ -53,11 +53,14 @@ categories = ["authentication", "web-programming::http-server"]
 [features]
 # Enables the DevFast Argon2 preset in release builds if explicitly opted-in.
 # In debug builds the preset is available automatically via cfg(debug_assertions).
+default = ["jsonwebtoken/rust_crypto"]
 insecure-fast-hash = []
 storage-surrealdb = ["surrealdb"]
 storage-seaorm = ["sea-orm/uuid"]
 audit-logging = []
 prometheus = ["audit-logging", "dep:prometheus"]
+aws_lc_rs = ["jsonwebtoken/aws_lc_rs"]
+
 
 
 [dependencies]
@@ -68,7 +71,7 @@ chrono = { workspace = true }
 const-crypto = "0.3"
 cookie = { version = "0.18" }
 http = "1"
-jsonwebtoken = { version = "10", features = ["aws_lc_rs"] }
+jsonwebtoken = { version = "10"}
 prometheus = { workspace = true, optional = true }
 rand = "0.9"
 roaring = { workspace = true, features = ["serde"] }
