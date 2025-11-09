@@ -29,7 +29,7 @@ use crate::secrets::SecretRepository;
 use crate::verification_result::VerificationResult;
 
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
+    ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter,
     entity::{ActiveModelTrait, ActiveValue},
 };
 use serde::{Serialize, de::DeserializeOwned};
@@ -208,29 +208,35 @@ where
     }
 
     async fn update_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
-        let Some(db_account): Option<Account<R, G>> =
-            self.query_account_by_user_id(&account.user_id).await?
+        let Some(db_account) = seaorm_account::Entity::find()
+            .filter(seaorm_account::Column::AccountId.eq(account.account_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Query,
+                    format!("Failed to query account for update: {}", e),
+                    Some(TableName::AxumGateAccounts.to_string()),
+                    Some(account.user_id.clone()),
+                ))
+            })?
         else {
             return Ok(None);
         };
+        let mut db_account = db_account.into_active_model();
         let user_id = account.user_id.clone();
-        let mut db_account: seaorm_account::ActiveModel = db_account.into();
         db_account.user_id = ActiveValue::Set(account.user_id);
         db_account.groups = ActiveValue::Set(account.groups.into_csv());
         db_account.roles = ActiveValue::Set(account.roles.into_csv());
 
-        let model = seaorm_account::Entity::update(db_account)
-            .filter(seaorm_account::Column::AccountId.eq(account.account_id))
-            .exec(&self.db)
-            .await
-            .map_err(|e| {
-                Error::Database(DatabaseError::with_context(
-                    DatabaseOperation::Update,
-                    format!("Failed to update account: {}", e),
-                    Some(TableName::AxumGateAccounts.to_string()),
-                    Some(user_id.clone()),
-                ))
-            })?;
+        let model = db_account.update(&self.db).await.map_err(|e| {
+            Error::Database(DatabaseError::with_context(
+                DatabaseOperation::Update,
+                format!("Failed to update account: {}", e),
+                Some(TableName::AxumGateAccounts.to_string()),
+                Some(user_id.clone()),
+            ))
+        })?;
         Ok(Some(Account::try_from(model).map_err(|e| {
             Error::Database(DatabaseError::with_context(
                 DatabaseOperation::Update,
@@ -295,19 +301,36 @@ impl SecretRepository for SeaOrmRepository {
 
     async fn update_secret(&self, secret: Secret) -> Result<()> {
         let account_id = secret.account_id;
-        let model = models::credentials::ActiveModel::from(secret);
-        models::credentials::Entity::update(model)
+        let old_model = models::credentials::Entity::find()
             .filter(models::credentials::Column::AccountId.eq(account_id))
-            .exec(&self.db)
+            .one(&self.db)
             .await
             .map_err(|e| {
                 Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Query,
+                    format!("Failed to query secret for update: {}", e),
+                    Some(TableName::AxumGateCredentials.to_string()),
+                    Some(account_id.to_string()),
+                ))
+            })?
+            .ok_or_else(|| {
+                Error::Database(DatabaseError::with_context(
                     DatabaseOperation::Update,
-                    format!("Failed to update secret: {}", e),
+                    "Secret not found for update".to_string(),
                     Some(TableName::AxumGateCredentials.to_string()),
                     Some(account_id.to_string()),
                 ))
             })?;
+        let mut new_model = old_model.into_active_model();
+        new_model.secret = ActiveValue::Set(secret.secret);
+        let _ = new_model.update(&self.db).await.map_err(|e| {
+            Error::Database(DatabaseError::with_context(
+                DatabaseOperation::Update,
+                format!("Failed to update secret: {}", e),
+                Some(TableName::AxumGateCredentials.to_string()),
+                Some(account_id.to_string()),
+            ))
+        })?;
         Ok(())
     }
 }
