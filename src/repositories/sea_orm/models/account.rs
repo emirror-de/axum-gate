@@ -20,6 +20,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     /// Stable business identifier for the account (UUID v7 recommended).
+    #[sea_orm(unique)]
     pub account_id: Uuid,
     /// External user identifier (e.g. email or username). Should be unique + indexed.
     pub user_id: String,

@@ -15,6 +15,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     /// Owning account UUID.
+    #[sea_orm(unique)]
     pub account_id: Uuid,
     /// Argon2 hashed secret (never plaintext).
     pub secret: String,
