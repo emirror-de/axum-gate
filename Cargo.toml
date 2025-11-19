@@ -11,6 +11,9 @@ members = [
     "examples/prometheus",
     "examples/oauth2-github",
 ]
+exclude = [
+    "examples/leptos-integration",
+]
 resolver = "3"
 
 [workspace.dependencies]

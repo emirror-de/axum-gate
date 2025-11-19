@@ -37,7 +37,14 @@
         inherit (pkgs) lib;
 
         # Use stable Rust toolchain
-        rustToolchain = fenix.packages.${system}.stable.toolchain;
+        rustToolchain =
+          let
+            fp = fenix.packages.${system};
+          in
+          fp.combine [
+            fp.stable.toolchain
+            fp.targets.wasm32-unknown-unknown.stable.rust-std
+          ];
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
         src = lib.cleanSourceWith {
@@ -204,6 +211,10 @@
               cargo-watch
               cargo-expand # For macro debugging
               cargo-machete # For unused dependency detection
+
+              # Leptos integration example
+              cargo-leptos
+              sass
 
               # Database tools for examples
               sqlite

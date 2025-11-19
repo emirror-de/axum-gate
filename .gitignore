@@ -1,4 +1,5 @@
 **/target
+**/.sass-cache
 result*
 
 .direnv
