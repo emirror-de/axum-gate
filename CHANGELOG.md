@@ -7,8 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2025-11-30
+### 📝 Other Changes
+- Updated version to v1.1.0 [bed9345](https://github.com/emirror-de/axum-gate/commit/bed9345b9fee70227ccc53efe2c854b64c1e468f)
+
+- Moved features for sea-orm to dev-dependencies [4a7082f](https://github.com/emirror-de/axum-gate/commit/4a7082fa45dc3da459f47f342d338bdf81cb5381)
+
+- Added hints for storage-seaorm-v2 feature [cf9fe01](https://github.com/emirror-de/axum-gate/commit/cf9fe0131d322aa87ff1813741958d4a00c31d5f)
+
+- Removed test for aws_lc_rs because it requires a storage to be enabled [201032f](https://github.com/emirror-de/axum-gate/commit/201032facb002b7d5c67985b6cbf2fe77f368551)
+
+- Removed --workspace for CI calls with feature storage-seaorm-v2 as well [8a333b1](https://github.com/emirror-de/axum-gate/commit/8a333b1e2f54c8da3342299283a3addd5b5b3f5f)
+
+- Removed --workspace from CI calls for storage-seaorm-v2 because examples are using storage-seaorm [c779de5](https://github.com/emirror-de/axum-gate/commit/c779de565007f7a0abb969e2202bf0a969619ac1)
+
+- Updated CI to integrate storage-seaorm-v2 feature [cc8bf36](https://github.com/emirror-de/axum-gate/commit/cc8bf368f282e57129406007cbba4b0a8fcfd3ae)
+
+- Re-arranged use statements in tests/timing_repositories.rs [58b6637](https://github.com/emirror-de/axum-gate/commit/58b66371c7e6e2fb03ba14ea2d8443bda3dccc07)
+
+- Add SeaORM v2 and sort dependencies (#10) [a83ba6f](https://github.com/emirror-de/axum-gate/commit/a83ba6f82ae811e5c00a6d992b3bae1d81293f01)
+
+
+
 ## [1.0.2] - 2025-11-24
 ### 📝 Other Changes
+- Version bump to v1.0.2 [8250dd7](https://github.com/emirror-de/axum-gate/commit/8250dd7022c1ba7b06e445a249aae175c7c2075b)
+
 - Added missing feature to CI [f2c6d87](https://github.com/emirror-de/axum-gate/commit/f2c6d8725b017ff0c24a99425da3862478764241)
 
 - Added release checks for CI [25bd543](https://github.com/emirror-de/axum-gate/commit/25bd543724645dadf39010f1d976ae9d2702c3c8)
