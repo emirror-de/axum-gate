@@ -2,7 +2,9 @@ name: CI
 
 on:
     push:
-        branches: [nightly]
+        branches:
+            - nightly
+            - "version/*"
     pull_request:
 
 permissions:
@@ -219,7 +221,7 @@ jobs:
 
     benches:
         name: Benches (allowed to fail)
-        if: github.ref == 'refs/heads/nightly' || github.event_name == 'pull_request'
+        if: startsWith(github.ref, 'refs/heads/version/') || github.ref == 'refs/heads/nightly' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
         continue-on-error: true
         steps:
@@ -290,7 +292,7 @@ jobs:
 
     semver-checks:
         name: cargo-semver-checks (feature matrix)
-        if: github.ref == 'refs/heads/nightly' || github.event_name == 'pull_request'
+        if: startsWith(github.ref, 'refs/heads/version/') || github.ref == 'refs/heads/nightly' || github.event_name == 'pull_request'
         needs: [test-integration, test-doc]
         runs-on: ubuntu-latest
         strategy:
@@ -383,7 +385,7 @@ jobs:
 
     coverage:
         name: Coverage (tarpaulin)
-        if: github.ref == 'refs/heads/nightly'
+        if: startsWith(github.ref, 'refs/heads/version/') || github.ref == 'refs/heads/nightly'
         runs-on: ubuntu-latest
         steps:
             - name: Checkout

@@ -200,6 +200,7 @@ cargo_semver_checks_insecure_fast_hash:
     only:
         - merge_requests
         - nightly
+        - /^version\/.*$/
 
 cargo_semver_checks_storage_surrealdb:
     <<: *rust_job
@@ -222,6 +223,7 @@ cargo_semver_checks_storage_seaorm:
     only:
         - merge_requests
         - nightly
+        - /^version\/.*$/
 
 cargo_semver_checks_storage_seaorm_v2:
     <<: *rust_job
@@ -244,6 +246,7 @@ cargo_semver_checks_audit_logging:
     only:
         - merge_requests
         - nightly
+        - /^version\/.*$/
 
 cargo_semver_checks_prometheus:
     <<: *rust_job
@@ -255,6 +258,7 @@ cargo_semver_checks_prometheus:
     only:
         - merge_requests
         - nightly
+        - /^version\/.*$/
 
 # Example compilation and basic tests
 examples_simple_usage:
@@ -342,6 +346,7 @@ bench_tests:
     only:
         - nightly
         - merge_requests
+        - /^version\/.*$/
 # Coverage report (optional)
 # Currently disabled because of specific security features in docker are not disabled
 # coverage:
