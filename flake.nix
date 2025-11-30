@@ -56,7 +56,7 @@
         commonArgs = {
           inherit src;
           pname = "axum-gate";
-          version = "1.0.2";
+          version = "1.1.0";
           strictDeps = true;
 
           nativeBuildInputs = with pkgs; [

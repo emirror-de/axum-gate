@@ -1,6 +1,6 @@
 # Security Policy
 
-This document outlines the security practices, built-in protections, and deployment guidance for `axum-gate` v1.0.2.
+This document outlines the security practices, built-in protections, and deployment guidance for `axum-gate` v1.1.0.
 
 ---
 
@@ -8,8 +8,8 @@ This document outlines the security practices, built-in protections, and deploym
 
 | Version | Supported |
 | ------- | --------- |
-| 1.0.2 | ✅ |
-| < 1.0.2 | ❌ |
+| 1.1.0 | ✅ |
+| < 1.1.0 | ❌ |
 
 Only the latest stable release and the most recent release candidate receive security updates.
 
@@ -245,7 +245,7 @@ async fn logout_handler(cookie_jar: CookieJar) -> CookieJar {
 
 ## 10. Observability & Monitoring
 
-### Current State (v1.0.2)
+### Current State (v1.1.0)
 - **Structured Logging**: Comprehensive tracing integration with contextual metadata for all authentication operations
 - **Prometheus Metrics**: Built-in counters and histograms (authorization decisions, JWT validation latency, account operations)
 - **Audit Logging**: Emits structured tracing events when `audit-logging` is enabled; integrate with your tracing subscriber/sink
@@ -385,7 +385,7 @@ match auth_result {
 
 ## 15. Feature Flags and Security
 
-### Available Feature Flags (v1.0.2)
+### Available Feature Flags (v1.1.0)
 | Feature | Security Impact | Recommendation |
 |---------|-----------------|----------------|
 | `insecure-fast-hash` | ⚠️ Weakens password hashing | **NEVER** enable in production |
@@ -399,13 +399,13 @@ match auth_result {
 // Production-safe feature configuration
 [dependencies]
 axum-gate = {
-    version = "1.0.2",
+    version = "1.1.0",
     features = ["storage-surrealdb", "audit-logging", "prometheus"]
 }
 
 // Development configuration (faster hashing automatically enabled in debug builds)
 [dev-dependencies]
-axum-gate = { version = "1.0.2", features = ["storage-surrealdb"] }
+axum-gate = { version = "1.1.0", features = ["storage-surrealdb"] }
 ```
 
 ---
@@ -491,6 +491,6 @@ cargo clippy -- -D warnings
 
 ---
 
-**Stay Secure**: `axum-gate` v1.0.2 provides a robust security foundation with production-ready features. Defense-in-depth requires combining it with proper infrastructure hardening, monitoring, and operational security practices.
+**Stay Secure**: `axum-gate` v1.1.0 provides a robust security foundation with production-ready features. Defense-in-depth requires combining it with proper infrastructure hardening, monitoring, and operational security practices.
 
 For the latest security updates and best practices, monitor the [GitHub repository](https://github.com/emirror-de/axum-gate) and [security advisories](https://github.com/emirror-de/axum-gate/security/advisories).
