@@ -94,7 +94,7 @@ pub mod errors;
 /// // Revoke permissions
 /// account.revoke_permission("write:api");
 /// ```
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Account<R, G>
 where
     R: AccessHierarchy + Eq,
