@@ -63,6 +63,10 @@ pub use errors::{
 };
 
 /// Table names used by the storage backends.
+///
+/// Added table names MUST remain stable across backends. New storage backends
+/// or features that require additional tables should add a corresponding entry
+/// here so the scope configuration can reference them in a type-safe manner.
 #[cfg(any(
     feature = "storage-surrealdb",
     feature = "storage-seaorm",
@@ -77,4 +81,6 @@ pub enum TableName {
     AxumGateCredentials,
     /// Permission mappings storage table name.
     AxumGatePermissionMappings,
+    /// Groups storage table name (used by group repository implementations).
+    AxumGateGroups,
 }

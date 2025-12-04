@@ -98,8 +98,9 @@
     any(feature = "storage-seaorm", feature = "storage-seaorm-v2")
 ))]
 use crate::comma_separated_value::CommaSeparatedValue;
-
 use serde::{Deserialize, Serialize};
+
+mod group_repository;
 
 /// A group represents a collection of users for access control purposes.
 ///
@@ -150,6 +151,24 @@ impl Group {
     /// ```
     pub fn name(&self) -> &str {
         &self.0
+    }
+}
+
+/// Trait implemented by types that can act as a group entity inside repositories.
+///
+/// Implement this for your domain group type so the repository can use the
+/// `group_id()` as the unique identifier. The method returns a string slice
+/// identifying the group (for example a name or a stable id).
+pub trait GroupEntity {
+    /// Return the unique identifier for this group as `&str`.
+    fn group_id(&self) -> &str;
+}
+
+/// Implement the `GroupEntity` trait for the crate's built-in `Group` type so
+/// the concrete `Group` can be used directly with `GroupRepository<T>`.
+impl GroupEntity for Group {
+    fn group_id(&self) -> &str {
+        self.name()
     }
 }
 

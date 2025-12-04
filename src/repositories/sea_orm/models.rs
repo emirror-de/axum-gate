@@ -1,3 +1,4 @@
+#![allow(clippy::use_self)]
 //! SeaORM persistence models for accounts and credentials.
 //!
 //! These modules define the database entities used internally by `SeaOrmRepository`.
@@ -8,7 +9,9 @@
 //! Submodules exposed:
 //! * `account`
 //! * `credentials`
+//! * `group` - persisted group entities serialized into JSON payloads for flexible domain types.
 
 pub mod account;
 pub mod credentials;
+pub mod group;
 pub mod permission_mapping;
