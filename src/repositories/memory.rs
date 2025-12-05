@@ -174,7 +174,7 @@ where
     async fn query_account_by_id(&self, account_id: &str) -> Result<Option<Account<R, G>>> {
         let read = self.accounts.read().await;
         for acc in read.values() {
-            if acc.account_id == account_id {
+            if acc.account_id.to_string().as_str() == account_id {
                 return Ok(Some(acc.clone()));
             }
         }
