@@ -132,6 +132,7 @@ use std::str::FromStr;
     Deserialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
 )]
 pub enum Role {
     /// Basic user role with standard application access.
