@@ -133,6 +133,29 @@ where
         Ok(db_account)
     }
 
+    async fn query_account_by_id(&self, account_id: &str) -> Result<Option<Account<R, G>>> {
+        self.use_ns_db().await?;
+        // Compose a RecordId from the configured accounts table and the account_id,
+        // then perform a direct select. This mirrors `query_account_by_user_id`'s
+        // approach and avoids constructing a custom query string.
+        let db_account: Option<Account<R, G>> = self
+            .db
+            .select(RecordId::from_table_key(
+                &self.scope_settings.accounts,
+                account_id,
+            ))
+            .await
+            .map_err(|e| {
+                Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Query,
+                    format!("Failed to query account by account_id: {}", e),
+                    Some(self.scope_settings.accounts.clone()),
+                    Some(account_id.to_string()),
+                ))
+            })?;
+        Ok(db_account)
+    }
+
     async fn store_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
         self.use_ns_db().await?;
         let record_id =

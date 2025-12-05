@@ -155,6 +155,33 @@ where
         })?))
     }
 
+    async fn query_account_by_id(&self, account_id: &str) -> Result<Option<Account<R, G>>> {
+        let Some(model) = seaorm_account::Entity::find()
+            .filter(seaorm_account::Column::AccountId.eq(account_id))
+            .one(&self.db)
+            .await
+            .map_err(|e| {
+                Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Query,
+                    format!("Failed to query account by account_id: {}", e),
+                    Some(TableName::AxumGateAccounts.to_string()),
+                    Some(account_id.to_string()),
+                ))
+            })?
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some(Account::try_from(model).map_err(|e| {
+            Error::Database(DatabaseError::with_context(
+                DatabaseOperation::Query,
+                format!("Failed to convert database model to Account: {}", e),
+                Some(TableName::AxumGateAccounts.to_string()),
+                Some(account_id.to_string()),
+            ))
+        })?))
+    }
+
     async fn store_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
         let mut model = seaorm_account::ActiveModel::from(account);
         model.id = ActiveValue::NotSet;

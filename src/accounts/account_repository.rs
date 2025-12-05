@@ -115,6 +115,21 @@ where
         user_id: &str,
     ) -> impl Future<Output = Result<Option<Account<R, G>>>> + Send;
 
+    /// Fetch an account by its stable account identifier (`account_id`).
+    ///
+    /// Backends SHOULD treat `account_id` as an alternate stable unique key and
+    /// SHOULD provide consistent timing characteristics with `query_account_by_user_id`
+    /// to avoid user/ID enumeration via timing attacks.
+    ///
+    /// Returns:
+    /// - `Ok(Some(account))` if found
+    /// - `Ok(None)` if not found
+    /// - `Err(e)` on backend failure
+    fn query_account_by_id(
+        &self,
+        account_id: &str,
+    ) -> impl Future<Output = Result<Option<Account<R, G>>>> + Send;
+
     /// Query all accounts in the repository.
     ///
     /// Returns:

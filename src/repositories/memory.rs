@@ -164,6 +164,23 @@ where
         let read = self.accounts.read().await;
         Ok(read.get(user_id).cloned())
     }
+
+    /// Query an account by its `account_id` field.
+    ///
+    /// Since the in-memory repository stores accounts keyed by `user_id`, this
+    /// performs a scan of the values to find a matching `account_id`. This is
+    /// acceptable for tests and small datasets; production backends SHOULD index
+    /// `account_id` for efficient lookup.
+    async fn query_account_by_id(&self, account_id: &str) -> Result<Option<Account<R, G>>> {
+        let read = self.accounts.read().await;
+        for acc in read.values() {
+            if acc.account_id == account_id {
+                return Ok(Some(acc.clone()));
+            }
+        }
+        Ok(None)
+    }
+
     async fn store_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
         let id = account.user_id.clone();
         let mut write = self.accounts.write().await;
