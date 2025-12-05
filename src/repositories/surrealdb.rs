@@ -7,6 +7,7 @@ use crate::authz::AccessHierarchy;
 use crate::credentials::Credentials;
 use crate::credentials::CredentialsVerifier;
 use crate::errors::{Error, Result};
+use crate::groups::{GroupEntity, GroupRepository};
 use crate::hashing::HashingService;
 use crate::hashing::argon2::Argon2Hasher;
 use crate::permissions::PermissionId;
@@ -199,17 +200,10 @@ where
     }
 }
 
-impl<S, T> crate::groups::group_repository::GroupRepository<T> for SurrealDbRepository<S>
+impl<S, T> GroupRepository<T> for SurrealDbRepository<S>
 where
     S: Connection,
-    T: Serialize
-        + DeserializeOwned
-        + crate::groups::group_repository::GroupEntity
-        + Eq
-        + Clone
-        + Send
-        + Sync
-        + 'static,
+    T: Serialize + DeserializeOwned + GroupEntity + Eq + Clone + Send + Sync + 'static,
 {
     async fn store_group(&self, group: T) -> Result<bool> {
         self.use_ns_db().await?;

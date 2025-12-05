@@ -14,7 +14,7 @@ use crate::comma_separated_value::CommaSeparatedValue;
 use crate::credentials::Credentials;
 use crate::credentials::CredentialsVerifier;
 use crate::errors::{Error, Result};
-use crate::groups::group_repository::{GroupEntity, GroupRepository as GroupRepositoryTrait};
+use crate::groups::{GroupEntity, GroupRepository as GroupRepositoryTrait};
 use crate::hashing::HashingService;
 use crate::hashing::argon2::Argon2Hasher;
 use crate::permissions::PermissionId;
@@ -718,8 +718,8 @@ where
                 ))
             })?;
 
-        // Convert stored model into domain T via TryFrom<Model>
-        let dom = T::try_from(model).map_err(|e| {
+        // Deserialize stored model payload into domain T
+        let dom = model.into_payload().map_err(|e| {
             Error::Database(DatabaseError::with_context(
                 DatabaseOperation::Delete,
                 format!("Failed to deserialize deleted group: {}", e),
@@ -763,7 +763,7 @@ where
             ))
         })?;
 
-        let dom = T::try_from(updated).map_err(|e| {
+        let dom = updated.into_payload().map_err(|e| {
             Error::Database(DatabaseError::with_context(
                 DatabaseOperation::Update,
                 format!("Failed to deserialize updated group: {}", e),
@@ -793,7 +793,7 @@ where
             None => return Ok(None),
         };
 
-        let dom = T::try_from(model).map_err(|e| {
+        let dom = model.into_payload().map_err(|e| {
             Error::Database(DatabaseError::with_context(
                 DatabaseOperation::Query,
                 format!("Failed to deserialize group payload: {}", e),
@@ -819,7 +819,7 @@ where
 
         let mut out = Vec::with_capacity(models.len());
         for m in models {
-            let dom = T::try_from(m).map_err(|e| {
+            let dom = m.into_payload().map_err(|e| {
                 Error::Database(DatabaseError::with_context(
                     DatabaseOperation::Query,
                     format!("Failed to deserialize group payload: {}", e),

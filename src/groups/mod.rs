@@ -98,6 +98,8 @@
     any(feature = "storage-seaorm", feature = "storage-seaorm-v2")
 ))]
 use crate::comma_separated_value::CommaSeparatedValue;
+#[cfg(feature = "server")]
+pub use group_repository::GroupRepository;
 use serde::{Deserialize, Serialize};
 
 mod group_repository;

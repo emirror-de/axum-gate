@@ -6,12 +6,12 @@
 //! `Serialize`/`Deserialize` and the `GroupEntity` trait (which provides
 //! `group_id()`).
 
-use crate::groups::group_repository::GroupEntity;
+use crate::groups::GroupEntity;
 #[cfg(feature = "storage-seaorm")]
 use sea_orm::{ActiveValue, entity::prelude::*};
 #[cfg(feature = "storage-seaorm-v2")]
 use sea_orm_v2::{ActiveValue, entity::prelude::*};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 /// SeaORM entity for a persisted group.
 ///
@@ -53,14 +53,26 @@ where
     }
 }
 
-impl<T> TryFrom<Model> for T
-where
-    T: for<'de> Deserialize<'de>,
-{
-    type Error = String;
+impl Model {
+    /// Deserialize the stored JSON payload into a domain type `T`.
+    ///
+    /// Consumes the model and returns a typed domain value or an error string.
+    pub fn into_payload<T>(self) -> Result<T, String>
+    where
+        T: DeserializeOwned,
+    {
+        serde_json::from_str(&self.payload)
+            .map_err(|e| format!("failed to deserialize group payload: {}", e))
+    }
 
-    fn try_from(value: Model) -> std::result::Result<T, Self::Error> {
-        serde_json::from_str(&value.payload)
+    /// Deserialize the stored JSON payload by reference into a domain type `T`.
+    ///
+    /// Does not consume the model.
+    pub fn payload_as<T>(&self) -> Result<T, String>
+    where
+        T: DeserializeOwned,
+    {
+        serde_json::from_str(&self.payload)
             .map_err(|e| format!("failed to deserialize group payload: {}", e))
     }
 }
