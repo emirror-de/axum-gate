@@ -102,6 +102,7 @@ use crate::comma_separated_value::CommaSeparatedValue;
 pub use group_repository::GroupRepository;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "server")]
 mod group_repository;
 
 /// A group represents a collection of users for access control purposes.
