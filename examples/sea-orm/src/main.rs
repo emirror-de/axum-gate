@@ -25,12 +25,12 @@ async fn setup_database_schema(db: &DbConn) {
     let schema = Schema::new(DbBackend::Sqlite);
     let stmt: TableCreateStatement = schema
         .create_table_from_entity(axum_gate::repositories::sea_orm::models::credentials::Entity);
-    db.execute(db.get_database_backend().build(&stmt))
+    db.execute(&stmt)
         .await
         .expect("Could not create credentials table");
     let stmt: TableCreateStatement =
         schema.create_table_from_entity(axum_gate::repositories::sea_orm::models::account::Entity);
-    db.execute(db.get_database_backend().build(&stmt))
+    db.execute(&stmt)
         .await
         .expect("Could not create account table");
 }
