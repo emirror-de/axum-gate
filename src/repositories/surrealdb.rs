@@ -161,7 +161,7 @@ where
                     DatabaseOperation::Query,
                     format!("Failed to query account by account_id: {}", e),
                     Some(self.scope_settings.accounts.clone()),
-                    Some(key.clone()),
+                    Some(account_id.clone()),
                 ))
             })?;
         Ok(db_account)
@@ -170,8 +170,10 @@ where
     async fn store_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
         self.use_ns_db().await?;
 
-        let record_id =
-            RecordId::from_table_key(self.scope_settings.accounts.clone(), &account.account_id);
+        let record_id = RecordId::from_table_key(
+            self.scope_settings.accounts.clone(),
+            account.account_id.clone(),
+        );
         let user_id = account.user_id.clone();
         let db_account: Option<Account<R, G>> = self
             .db
@@ -204,7 +206,7 @@ where
                     DatabaseOperation::Delete,
                     format!("Failed to delete account: {}", e),
                     Some(self.scope_settings.accounts.clone()),
-                    Some(key.clone()),
+                    Some(account_id.clone()),
                 ))
             })?;
         Ok(db_account)

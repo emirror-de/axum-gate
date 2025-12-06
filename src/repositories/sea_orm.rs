@@ -157,7 +157,7 @@ where
 
     async fn query_account_by_id(&self, account_id: &uuid::Uuid) -> Result<Option<Account<R, G>>> {
         let Some(model) = seaorm_account::Entity::find()
-            .filter(seaorm_account::Column::AccountId.eq(account_id))
+            .filter(seaorm_account::Column::AccountId.eq(*account_id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -205,7 +205,7 @@ where
 
     async fn delete_account(&self, account_id: &uuid::Uuid) -> Result<Option<Account<R, G>>> {
         let Some(model) = seaorm_account::Entity::find()
-            .filter(seaorm_account::Column::AccountId.eq(account_id))
+            .filter(seaorm_account::Column::AccountId.eq(*account_id))
             .one(&self.db)
             .await
             .map_err(|e| {
