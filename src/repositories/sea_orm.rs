@@ -149,9 +149,9 @@ where
         })?))
     }
 
-    async fn query_account_by_id(&self, account_id: &str) -> Result<Option<Account<R, G>>> {
+    async fn query_account_by_id(&self, account_id: &uuid::Uuid) -> Result<Option<Account<R, G>>> {
         let Some(model) = seaorm_account::Entity::find()
-            .filter(seaorm_account::Column::AccountId.eq(account_id))
+            .filter(seaorm_account::Column::AccountId.eq(*account_id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -197,9 +197,9 @@ where
         })?))
     }
 
-    async fn delete_account(&self, user_id: &str) -> Result<Option<Account<R, G>>> {
+    async fn delete_account(&self, account_id: &uuid::Uuid) -> Result<Option<Account<R, G>>> {
         let Some(model) = seaorm_account::Entity::find()
-            .filter(seaorm_account::Column::UserId.eq(user_id))
+            .filter(seaorm_account::Column::AccountId.eq(*account_id))
             .one(&self.db)
             .await
             .map_err(|e| {
@@ -207,7 +207,7 @@ where
                     DatabaseOperation::Query,
                     format!("Failed to query account for deletion: {}", e),
                     Some(TableName::AxumGateAccounts.to_string()),
-                    Some(user_id.to_string()),
+                    Some(account_id.to_string()),
                 ))
             })?
         else {
@@ -222,7 +222,7 @@ where
                     DatabaseOperation::Delete,
                     format!("Failed to delete account: {}", e),
                     Some(TableName::AxumGateAccounts.to_string()),
-                    Some(user_id.to_string()),
+                    Some(account_id.to_string()),
                 ))
             })?;
 
@@ -231,7 +231,7 @@ where
                 DatabaseOperation::Delete,
                 format!("Failed to convert deleted model to Account: {}", e),
                 Some(TableName::AxumGateAccounts.to_string()),
-                Some(user_id.to_string()),
+                Some(account_id.to_string()),
             ))
         })?))
     }
