@@ -2,66 +2,32 @@ use crate::errors::Result;
 use crate::{accounts::Account, authz::AccessHierarchy};
 
 use std::future::Future;
+use uuid::Uuid;
 
-/// Repository abstraction for persisting and retrieving [`Account`] entities.
+/// Repository abstraction for persisting and retrieving `Account` entities.
 ///
-/// This trait is implemented by storage backends (e.g. in‑memory, SurrealDB, SeaORM).
-/// It deliberately uses an `Option<Account<..>>` in results for operations where
-/// absence is a normal outcome (delete / update / query) so callers can
-/// distinguish “not found” from actual errors (`Result::Err`).
+/// This trait is intentionally small and focused on the basic operations required
+/// by the rest of the application: create, update, delete and lookups by either
+/// the logical login identifier (`user_id`) or the stable internal identifier
+/// (`account_id`).
 ///
-/// # Semantics
+/// Key design points:
+/// - `user_id` is treated as the logical login identifier (email / username).
+///   It is useful for authentication and user-facing flows and therefore there
+///   are query methods that accept `&str` for that purpose.
+/// - `account_id` is treated as the stable internal identifier (UUID). It is
+///   the recommended identifier for persistence operations (deletes, secret
+///   storage, cross-table references). To reduce accidental coupling to mutable
+///   login identifiers, the repository API accepts `&Uuid` for `query_account_by_id`
+///   and `delete_account`.
+/// - Implementations SHOULD enforce uniqueness of `user_id` at the storage
+///   layer where possible and SHOULD document timing characteristics for lookups
+///   when used in authentication flows (to avoid user enumeration via timing).
 ///
-/// | Method                | Success (`Ok`) Return Value                        | Typical `None` Meaning                    | Error (`Err`) Meaning                            |
-/// |-----------------------|----------------------------------------------------|-------------------------------------------|--------------------------------------------------|
-/// | `store_account`       | `Some(Account)` if stored                          | `None` only if backend chooses (rare)     | Persistence / connectivity / constraint failure  |
-/// | `delete_account`      | `Some(Account)` = deleted & returned               | `None` = no account with that user id     | Backend / IO failure                             |
-/// | `update_account`      | `Some(Account)` = updated                          | `None` = no existing account to update    | Backend / IO / optimistic concurrency failure    |
-/// | `query_account_by_user_id` | `Some(Account)` = found                      | `None` = not found                        | Backend / IO failure                             |
-/// | `query_all_accounts`  | `Vec<Account>` containing zero or more accounts    | N/A                                       | Backend / IO failure                             |
-///
-/// Backends SHOULD:
-/// - Treat `user_id` as a logical unique key
-/// - Enforce uniqueness at storage level where possible
-/// - Return **identical timing characteristics** for “found” vs “not found” where feasible
-///   (helps upstream login logic resist user enumeration timing attacks)
-///
-/// # Concurrency & Consistency
-///
-/// This trait does not prescribe isolation semantics. Implementations should document:
-/// - Whether updates are last‑write‑wins
-/// - Whether optimistic locking / versioning is applied
-///
-/// # Example (generic usage)
-/// ```rust
-///
-/// use axum_gate::accounts::Account;
-/// use axum_gate::prelude::{Role, Group};
-/// use axum_gate::accounts::AccountRepository;
-/// use axum_gate::repositories::memory::MemoryAccountRepository;
-///
-/// # #[tokio::test]
-/// async fn load_or_create(
-///     repo: &MemoryAccountRepository<Role, Group>,
-///     template: Account<Role, Group>
-/// ) -> axum_gate::errors::Result<Account<Role, Group>> {
-///     if let Some(existing) = repo.query_account_by_user_id(&template.user_id).await? {
-///         Ok(existing)
-///     } else {
-///         Ok(repo.store_account(template).await?.expect("store returned None"))
-///     }
-/// }
-/// ```
-///
-/// # Error Handling
-///
-/// Return `Err` only for exceptional backend failures (connectivity, serialization,
-/// constraint violation, etc.). Use `Ok(None)` for “not found” / “no-op” outcomes.
-///
-/// # Extensibility
-///
-/// If you add methods (e.g. pagination, search), prefer separate traits to avoid forcing
-/// all backends to implement optional features.
+/// Error handling:
+/// - Return `Ok(Some(account))` on successful materialization of an account.
+/// - Return `Ok(None)` when the requested account does not exist (not an error).
+/// - Return `Err(..)` for exceptional backend failures (I/O, serialization, constraint violation).
 pub trait AccountRepository<R, G>
 where
     Self: Send + Sync,
@@ -70,29 +36,31 @@ where
 {
     /// Persist a new account.
     ///
-    /// Implementations SHOULD enforce uniqueness of `user_id`. Returning `Ok(Some(account))`
-    /// indicates success. Returning `Ok(None)` is discouraged unless there is a documented
-    /// race / conditional insert semantics the backend wishes to expose.
+    /// Implementations SHOULD enforce uniqueness of `user_id`. Returning
+    /// `Ok(Some(account))` indicates success. Returning `Ok(None)` is
+    /// discouraged unless the backend intentionally exposes conditional insert
+    /// semantics.
     fn store_account(
         &self,
         account: Account<R, G>,
     ) -> impl Future<Output = Result<Option<Account<R, G>>>> + Send;
 
-    /// Delete an account identified by its `user_id`.
+    /// Delete an account identified by its stable `account_id` (UUID).
     ///
     /// Returns:
     /// - `Ok(Some(account))` if the account existed and was removed
-    /// - `Ok(None)` if no account matched `user_id`
+    /// - `Ok(None)` if no account matched `account_id`
     /// - `Err(e)` on backend error
     fn delete_account(
         &self,
-        user_id: &str,
+        account_id: &Uuid,
     ) -> impl Future<Output = Result<Option<Account<R, G>>>> + Send;
 
     /// Update an existing account.
     ///
-    /// Implementations may perform either full replacement or partial persistence depending
-    /// on backend capabilities (document if non‑standard). Returns:
+    /// Implementations may perform either full replacement or partial persistence
+    /// depending on backend capabilities (document non-standard behavior).
+    /// Returns:
     /// - `Ok(Some(updated_account))` on success
     /// - `Ok(None)` if the account does not exist
     /// - `Err(e)` on failure
@@ -101,43 +69,30 @@ where
         account: Account<R, G>,
     ) -> impl Future<Output = Result<Option<Account<R, G>>>> + Send;
 
-    /// Fetch an account by its logical user identifier.
+    /// Fetch an account by its logical user identifier (`user_id`).
     ///
-    /// This must **not** leak timing differences exploitable for enumeration if used
-    /// together with authentication flows relying on indistinguishable “not found”.
-    ///
-    /// Returns:
-    /// - `Ok(Some(account))` if found
-    /// - `Ok(None)` if not found
-    /// - `Err(e)` on backend failure
+    /// This lookup is commonly used during authentication flows. Implementations
+    /// SHOULD take care to avoid leaking timing differences that could be used
+    /// to enumerate existing user_ids.
     fn query_account_by_user_id(
         &self,
         user_id: &str,
     ) -> impl Future<Output = Result<Option<Account<R, G>>>> + Send;
 
-    /// Fetch an account by its stable account identifier (`account_id`).
+    /// Fetch an account by its stable internal identifier (`account_id` / UUID).
     ///
-    /// Backends SHOULD treat `account_id` as an alternate stable unique key and
-    /// SHOULD provide consistent timing characteristics with `query_account_by_user_id`
-    /// to avoid user/ID enumeration via timing attacks.
-    ///
-    /// Returns:
-    /// - `Ok(Some(account))` if found
-    /// - `Ok(None)` if not found
-    /// - `Err(e)` on backend failure
+    /// This is the recommended lookup form for operations that must operate on
+    /// the canonical, immutable account identifier (deletions, secret operations,
+    /// cross-table references).
     fn query_account_by_id(
         &self,
-        account_id: &str,
+        account_id: &Uuid,
     ) -> impl Future<Output = Result<Option<Account<R, G>>>> + Send;
 
     /// Query all accounts in the repository.
     ///
-    /// Returns:
-    /// - `Ok(vec)` containing zero or more accounts on success
-    /// - `Err(e)` on backend failure
-    ///
-    /// Note: backends SHOULD document ordering semantics (if any). For large datasets,
-    /// implementors MAY provide a separate paginated trait to avoid forcing all backends
-    /// to materialize the entire dataset in memory.
+    /// Implementations SHOULD document ordering semantics if any. For large
+    /// datasets consider offering a paginated variant rather than returning all
+    /// accounts in memory.
     fn query_all_accounts(&self) -> impl Future<Output = Result<Vec<Account<R, G>>>> + Send;
 }

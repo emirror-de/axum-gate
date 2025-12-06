@@ -58,9 +58,9 @@ where
 
     async fn delete_account(
         &self,
-        user_id: &str,
+        account_id: &uuid::Uuid,
     ) -> axum_gate::errors::Result<Option<Account<R, G>>> {
-        self.inner.delete_account(user_id).await
+        self.inner.delete_account(account_id).await
     }
 
     async fn update_account(
@@ -77,6 +77,17 @@ where
         let res = self.inner.query_account_by_user_id(user_id).await?;
         if let Some(ref acc) = res {
             info!(user_id = %acc.user_id, account_id = %acc.account_id, "OAuth2: existing account queried");
+        }
+        Ok(res)
+    }
+
+    async fn query_account_by_id(
+        &self,
+        account_id: &uuid::Uuid,
+    ) -> axum_gate::errors::Result<Option<Account<R, G>>> {
+        let res = self.inner.query_account_by_id(account_id).await?;
+        if let Some(ref acc) = res {
+            info!(user_id = %acc.user_id, account_id = %acc.account_id, "OAuth2: existing account queried by id");
         }
         Ok(res)
     }
