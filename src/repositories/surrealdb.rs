@@ -153,7 +153,7 @@ where
             .db
             .select(RecordId::from_table_key(
                 &self.scope_settings.accounts,
-                account_id.clone(),
+                *account_id,
             ))
             .await
             .map_err(|e| {
@@ -198,7 +198,7 @@ where
             .db
             .delete(RecordId::from_table_key(
                 self.scope_settings.accounts.clone(),
-                account_id.clone(),
+                *account_id,
             ))
             .await
             .map_err(|e| {
@@ -215,10 +215,8 @@ where
     async fn update_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
         self.use_ns_db().await?;
 
-        let record_id = RecordId::from_table_key(
-            self.scope_settings.accounts.clone(),
-            account.account_id.clone(),
-        );
+        let record_id =
+            RecordId::from_table_key(self.scope_settings.accounts.clone(), *account.account_id);
         let db_account: Option<Account<R, G>> = self.db.update(&record_id).content(account).await?;
         Ok(db_account)
     }
