@@ -161,7 +161,7 @@ where
                     DatabaseOperation::Query,
                     format!("Failed to query account by account_id: {}", e),
                     Some(self.scope_settings.accounts.clone()),
-                    Some(account_id.clone()),
+                    Some(account_id.to_string()),
                 ))
             })?;
         Ok(db_account)
@@ -206,7 +206,7 @@ where
                     DatabaseOperation::Delete,
                     format!("Failed to delete account: {}", e),
                     Some(self.scope_settings.accounts.clone()),
-                    Some(account_id.clone()),
+                    Some(account_id.to_string()),
                 ))
             })?;
         Ok(db_account)
