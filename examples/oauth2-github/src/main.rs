@@ -81,6 +81,17 @@ where
         Ok(res)
     }
 
+    async fn query_account_by_id(
+        &self,
+        account_id: &str,
+    ) -> axum_gate::errors::Result<Option<Account<R, G>>> {
+        let res = self.inner.query_account_by_id(account_id).await?;
+        if let Some(ref acc) = res {
+            info!(user_id = %acc.user_id, account_id = %acc.account_id, "OAuth2: existing account queried");
+        }
+        Ok(res)
+    }
+
     async fn query_all_accounts(&self) -> axum_gate::errors::Result<Vec<Account<R, G>>> {
         let res = self.inner.query_all_accounts().await?;
         info!(count = res.len(), "OAuth2: queried all accounts");
