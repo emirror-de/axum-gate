@@ -170,10 +170,8 @@ where
     async fn store_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
         self.use_ns_db().await?;
 
-        let record_id = RecordId::from_table_key(
-            self.scope_settings.accounts.clone(),
-            account.account_id.clone(),
-        );
+        let record_id =
+            RecordId::from_table_key(self.scope_settings.accounts.clone(), account.account_id);
         let user_id = account.user_id.clone();
         let db_account: Option<Account<R, G>> = self
             .db
