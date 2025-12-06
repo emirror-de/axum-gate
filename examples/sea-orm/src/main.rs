@@ -1,7 +1,10 @@
 use axum_gate::accounts::AccountInsertService;
-use axum_gate::codecs::jwt::RegisteredClaims;
+use axum_gate::accounts::AccountRepository;
+use axum_gate::codecs::jwt::{JsonWebToken, JsonWebTokenOptions, JwtClaims, RegisteredClaims};
+use axum_gate::hashing::argon2::Argon2Hasher;
 use axum_gate::prelude::*;
 use axum_gate::repositories::sea_orm::SeaOrmRepository;
+use axum_gate::secrets::{Secret, SecretRepository};
 
 use std::sync::Arc;
 
@@ -9,26 +12,24 @@ use axum::extract::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{Router, get, post};
-use axum_gate::accounts::AccountRepository;
-use axum_gate::hashing::argon2::Argon2Hasher;
-use axum_gate::secrets::{Secret, SecretRepository};
-use chrono::{TimeDelta, Utc};
-use sea_orm::{ConnectionTrait, DbBackend, DbConn, Schema};
-use sea_query::table::TableCreateStatement;
+use chrono::{Duration, Utc};
+use sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbBackend, Schema};
 use tracing::debug;
 
 const DATABASE_URL: &str = "sqlite::memory:";
 // Use the following if you want to see what is stored
 //const DATABASE_URL: &str = "sqlite:auth-node.sqlite3?mode=rwc";
 
-async fn setup_database_schema(db: &DbConn) {
+async fn setup_database_schema(db: &DatabaseConnection) {
     let schema = Schema::new(DbBackend::Sqlite);
-    let stmt: TableCreateStatement = schema
+    let stmt = schema
         .create_table_from_entity(axum_gate::repositories::sea_orm::models::credentials::Entity);
+    // execute the statement using the connection's execute method
     db.execute(&stmt)
         .await
         .expect("Could not create credentials table");
-    let stmt: TableCreateStatement =
+
+    let stmt =
         schema.create_table_from_entity(axum_gate::repositories::sea_orm::models::account::Entity);
     db.execute(&stmt)
         .await
@@ -67,7 +68,7 @@ async fn main() {
         Arc::new(JsonWebToken::<JwtClaims<Account<Role, Group>>>::new_with_options(jwt_options));
 
     // SQLite memory database connection
-    let db = sea_orm::Database::connect(DATABASE_URL)
+    let db: DatabaseConnection = Database::connect(DATABASE_URL)
         .await
         .unwrap_or_else(|_| panic!("Could not connect to {DATABASE_URL} database."));
 
@@ -120,7 +121,7 @@ async fn main() {
                 let registered_claims = RegisteredClaims::new(
                     // same as in distributed example, so you can re-use the consumer_node
                     "auth-node",
-                    (Utc::now() + TimeDelta::weeks(1)).timestamp() as u64,
+                    (Utc::now() + Duration::weeks(1)).timestamp() as u64,
                 );
                 let secrets_repository = Arc::clone(&secrets_repository);
                 let account_repository = Arc::clone(&account_repository);
