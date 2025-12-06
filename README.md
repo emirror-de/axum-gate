@@ -29,12 +29,10 @@ axum-gate = { version = "1" }
 
 Optional features:
 - storage-surrealdb — SurrealDB repositories
-- storage-seaorm — SeaORM repositories (mutually exclusive with `storage-seaorm-v2`)
-- storage-seaorm-v2 — SeaORM v2 repositories (mutually exclusive with `storage-seaorm`)
+- storage-seaorm — SeaORM repositories
 - audit-logging — structured audit events
 - prometheus — metrics for audit (implies audit-logging)
 - insecure-fast-hash — faster Argon2 preset for development only
-- aws_lc_rs — Use AWS Libcrypto for JWT cryptographic operations
 
 ## Core concepts
 
@@ -58,36 +56,9 @@ Optional features:
 - JWT codec
   - codecs::jwt::JsonWebToken with JsonWebTokenOptions (use persistent keys in production)
 
-## Cryptographic Backend Selection
+## Cryptographic Backend
 
-This crate supports two cryptographic backends for JWT operations:
-
-| Backend | Default | Description |
-|---------|---------|-------------|
-| `rust_crypto` | ✅ | Pure Rust implementation, works on all platforms without system dependencies |
-| `aws_lc_rs` | ❌ | AWS Libcrypto implementation, potentially faster on some platforms |
-
-### Using the Default Backend (rust_crypto)
-
-The crate uses `rust_crypto` by default, which requires no additional setup:
-
-```toml
-[dependencies]
-axum-gate = "1" # Uses rust_crypto by default
-```
-
-### Switching to AWS Libcrypto (aws_lc_rs)
-
-To use the AWS Libcrypto backend for potentially better performance:
-
-```toml
-[dependencies]
-axum-gate = { version = "1", default-features = false, features = ["aws_lc_rs"] }
-```
-
-Note: The `aws_lc_rs` backend may require additional build tools depending on your platform.
-See the [aws-lc-rs build documentation](https://github.com/aws/aws-lc-rs/blob/main/aws-lc-rs/README.md#build) for details.
-
+This crate uses `rust_crypto` backend for JWT operations.
 
 ## Security
 
@@ -113,6 +84,6 @@ For common integration issues and practical debugging tips, see TROUBLESHOOTING.
   - BUSL restricts Production Use unless allowed by the licensor or after the project's Change Date. This feature is off by default.
   - If you build or distribute binaries that enable this feature, you must comply with SurrealDB's BUSL terms or obtain a commercial license.
   - When distributing binaries that include SurrealDB, include third-party notices and the SurrealDB license text.
-  - For fully open-source distributions, prefer the `memory`, `storage-seaorm`, or `storage-seaorm-v2` backends. Note: `storage-seaorm` and `storage-seaorm-v2` are mutually exclusive — enable only one of these features per build.
+  - For fully open-source distributions, prefer the `memory`, `storage-seaorm` backends.
 - subtle license notice:
   - The license for the subtle dependency is provided in the NOTICE file in this repository. When redistributing, retain the NOTICE contents as required by that license.

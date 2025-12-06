@@ -37,12 +37,6 @@ use sea_orm::{
     entity::{ActiveModelTrait, ActiveValue},
 };
 
-#[cfg(feature = "storage-seaorm-v2")]
-use sea_orm_v2::{
-    ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter,
-    entity::{ActiveModelTrait, ActiveValue},
-};
-
 /// SeaORM persistence entities (database models) used by `SeaOrmRepository`.
 ///
 /// These are thin schemas mapping relational rows to structures convertible

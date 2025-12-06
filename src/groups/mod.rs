@@ -93,10 +93,7 @@
 //! ];
 //! ```
 
-#[cfg(all(
-    feature = "server",
-    any(feature = "storage-seaorm", feature = "storage-seaorm-v2")
-))]
+#[cfg(all(feature = "server", feature = "storage-seaorm"))]
 use crate::comma_separated_value::CommaSeparatedValue;
 #[cfg(feature = "server")]
 pub use group_repository::GroupRepository;
@@ -175,10 +172,7 @@ impl GroupEntity for Group {
     }
 }
 
-#[cfg(all(
-    feature = "server",
-    any(feature = "storage-seaorm", feature = "storage-seaorm-v2")
-))]
+#[cfg(all(feature = "server", feature = "storage-seaorm"))]
 impl CommaSeparatedValue for Vec<Group> {
     fn from_csv(value: &str) -> Result<Self, String> {
         Ok(value

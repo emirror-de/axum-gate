@@ -32,14 +32,10 @@
 //!
 //! ### Feature Flags
 //! - `storage-surrealdb` — SurrealDB repositories (see [BUSL-1.1 license note](https://github.com/emirror-de/axum-gate?tab=readme-ov-file#msrv-and-license))!
-//! - `storage-seaorm` — SeaORM repositories (original `sea-orm` crate; mutually exclusive with `storage-seaorm-v2`)
-//! - `storage-seaorm-v2` — SeaORM v2 repositories
+//! - `storage-seaorm` — SeaORM repositories
 //! - `audit-logging` — emit structured audit events
 //! - `prometheus` — export metrics for audit logging (implies `audit-logging`)
 //! - `insecure-fast-hash` — faster Argon2 preset for development only (opt-in for release, not recommended)
-//! - `aws_lc_rs`: Uses AWS Libcrypto for JWT cryptographic operations
-//!
-//! Note: `storage-seaorm` and `storage-seaorm-v2` are mutually exclusive. Enable only one of these features per build to avoid compilation/feature conflicts.
 //!
 //! For common integration issues and debugging tips, [see the Troubleshooting guide](https://github.com/emirror-de/axum-gate/blob/nightly/TROUBLESHOOTING.md).
 //!
@@ -378,10 +374,7 @@ pub mod authn;
 pub mod authz;
 #[cfg(feature = "server")]
 pub mod codecs;
-#[cfg(all(
-    feature = "server",
-    any(feature = "storage-seaorm", feature = "storage-seaorm-v2")
-))]
+#[cfg(all(feature = "server", feature = "storage-seaorm"))]
 pub mod comma_separated_value;
 #[cfg(feature = "server")]
 pub mod cookie_template;

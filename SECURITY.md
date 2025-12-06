@@ -59,17 +59,11 @@ The crate provides three security presets:
 By default, this crate uses the `rust_crypto` backend for JWT cryptographic operations.
 This is a pure Rust implementation that doesn't require external dependencies.
 
-Alternatively, you can choose the `aws_lc_rs` feature to use AWS Libcrypto, which may offer
-better performance on some platforms:
-
-```toml
-axum-gate = { version = "1", default-features = false, features = ["aws_lc_rs"] }
-```
+The crate uses the `rust_crypto` backend by default, which is a pure-Rust implementation and does not require external system dependencies.
 
 Note that the `rust_crypto` backend depends on the `rsa` crate which was affected by vulnerability
 [RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071.html) (Marvin Attack). This is a timing attack that could
-potentially allow key recovery. Users who want to avoid this vulnerability can opt to use the
-`aws_lc_rs` backend instead.
+potentially allow key recovery.
 
 ### Key Management
 - **Development Default**: Generates ephemeral random key per process (testing only)

@@ -54,7 +54,7 @@
 
 pub mod errors;
 pub mod memory;
-#[cfg(any(feature = "storage-seaorm", feature = "storage-seaorm-v2"))]
+#[cfg(feature = "storage-seaorm")]
 pub mod sea_orm;
 #[cfg(feature = "storage-surrealdb")]
 pub mod surrealdb;
@@ -67,11 +67,7 @@ pub use errors::{
 /// Added table names MUST remain stable across backends. New storage backends
 /// or features that require additional tables should add a corresponding entry
 /// here so the scope configuration can reference them in a type-safe manner.
-#[cfg(any(
-    feature = "storage-surrealdb",
-    feature = "storage-seaorm",
-    feature = "storage-seaorm-v2"
-))]
+#[cfg(any(feature = "storage-surrealdb", feature = "storage-seaorm"))]
 #[derive(strum::Display, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[strum(serialize_all = "snake_case")]
 pub enum TableName {
