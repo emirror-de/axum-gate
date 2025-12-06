@@ -216,7 +216,7 @@ where
         self.use_ns_db().await?;
 
         let record_id =
-            RecordId::from_table_key(self.scope_settings.accounts.clone(), *account.account_id);
+            RecordId::from_table_key(self.scope_settings.accounts.clone(), account.account_id);
         let db_account: Option<Account<R, G>> = self.db.update(&record_id).content(account).await?;
         Ok(db_account)
     }
