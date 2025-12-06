@@ -44,13 +44,8 @@ clippy_check:
     <<: *rust_job
     stage: check
     script:
-        # Run clippy for configurations that use storage-seaorm (never combined with v2)
+        # Run clippy for combinations that include storage-surrealdb,storage-seaorm
         - cargo clippy --workspace --all-targets --features storage-surrealdb,storage-seaorm -- -D warnings
-        # Run clippy for configurations that use storage-seaorm-v2 (separate run to avoid enabling both features)
-        - cargo clippy --all-targets --features storage-surrealdb,storage-seaorm-v2 -- -D warnings
-        # No-default-features variants for aws_lc_rs with seaorm (separate)
-        - cargo clippy --all-targets --no-default-features --features server,aws_lc_rs,storage-surrealdb,storage-seaorm -- -D warnings
-        - cargo clippy --all-targets --no-default-features --features server,aws_lc_rs,storage-surrealdb,storage-seaorm-v2 -- -D warnings
     allow_failure: false
 
 # Test stage jobs - Core tests
@@ -59,30 +54,6 @@ test_default_features:
     stage: test
     script:
         - cargo test --workspace
-    allow_failure: false
-
-test_aws_lc_rs:
-    <<: *rust_job
-    stage: test
-    script:
-        # Run aws_lc_rs tests without any seaorm storage feature enabled
-        - cargo test --no-default-features --features server,aws_lc_rs
-    allow_failure: false
-
-test_aws_lc_rs_seaorm_surrealdb:
-    <<: *rust_job
-    stage: test
-    script:
-        # Run aws_lc_rs tests with storage-seaorm (explicitly exclude v2)
-        - cargo test --no-default-features --features server,aws_lc_rs,storage-surrealdb,storage-seaorm
-    allow_failure: false
-
-test_aws_lc_rs_seaorm_v2_surrealdb:
-    <<: *rust_job
-    stage: test
-    script:
-        # Run aws_lc_rs tests with storage-seaorm-v2 (explicitly exclude original seaorm)
-        - cargo test --no-default-features --features server,aws_lc_rs,storage-surrealdb,storage-seaorm-v2
     allow_failure: false
 
 # Individual feature tests
@@ -113,13 +84,6 @@ test_all_storage_features:
     stage: test
     script:
         - cargo test --workspace --features storage-surrealdb,storage-seaorm
-    allow_failure: false
-
-test_all_storage_features_seaorm_v2:
-    <<: *rust_job
-    stage: test
-    script:
-        - cargo test --features storage-surrealdb,storage-seaorm-v2
     allow_failure: false
 
 test_fast_hash_with_surrealdb:
@@ -179,17 +143,6 @@ cargo_semver_checks_default:
         - merge_requests
         - nightly
 
-cargo_semver_checks_aws_lc_rs:
-    <<: *rust_job
-    stage: security
-    script:
-        - cargo install cargo-semver-checks
-        - cargo semver-checks check-release --only-explicit-features --features aws_lc_rs,server
-    allow_failure: false
-    only:
-        - merge_requests
-        - nightly
-
 cargo_semver_checks_insecure_fast_hash:
     <<: *rust_job
     stage: security
@@ -224,17 +177,6 @@ cargo_semver_checks_storage_seaorm:
         - merge_requests
         - nightly
         - /^version\/.*$/
-
-cargo_semver_checks_storage_seaorm_v2:
-    <<: *rust_job
-    stage: security
-    script:
-        - cargo install cargo-semver-checks
-        - cargo semver-checks check-release --only-explicit-features --features storage-seaorm_v2,default
-    allow_failure: false
-    only:
-        - merge_requests
-        - nightly
 
 cargo_semver_checks_audit_logging:
     <<: *rust_job

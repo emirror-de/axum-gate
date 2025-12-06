@@ -17,9 +17,6 @@ use crate::permissions::mapping::PermissionMapping;
 #[cfg(feature = "storage-seaorm")]
 use sea_orm::{ActiveValue, entity::prelude::*};
 
-#[cfg(feature = "storage-seaorm-v2")]
-use sea_orm_v2::{self as sea_orm, ActiveValue, entity::prelude::*};
-
 /// SeaORM entity for a permission mapping (normalized string <-> id).
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "axum_gate_permission_mappings")]

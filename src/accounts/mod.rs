@@ -33,7 +33,7 @@ mod server_impl {
     pub use super::account_insert::AccountInsertService;
     pub use super::account_repository::AccountRepository;
     pub use super::errors::{AccountOperation, AccountsError};
-    #[cfg(any(feature = "storage-seaorm", feature = "storage-seaorm-v2"))]
+    #[cfg(feature = "storage-seaorm")]
     pub use crate::comma_separated_value::CommaSeparatedValue;
 }
 
@@ -178,7 +178,7 @@ where
     /// * `user_id` - Unique identifier for the user
     /// * `roles` - Roles to assign to this account
     /// * `groups` - Groups this account should belong to
-    #[cfg(any(feature = "storage-seaorm", feature = "storage-seaorm-v2"))]
+    #[cfg(feature = "storage-seaorm")]
     pub(crate) fn new_with_account_id(
         account_id: &Uuid,
         user_id: &str,
@@ -325,7 +325,7 @@ where
     }
 }
 
-#[cfg(any(feature = "storage-seaorm", feature = "storage-seaorm-v2"))]
+#[cfg(feature = "storage-seaorm")]
 impl<R, G> TryFrom<crate::repositories::sea_orm::models::account::Model> for Account<R, G>
 where
     R: AccessHierarchy + Eq + std::fmt::Display + Clone,

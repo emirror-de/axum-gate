@@ -15,4 +15,4 @@ reason = "paste is only a transitive dep via surrealdb; awaiting upstream to dro
 # Users preferring to avoid this entirely can use the rust_crypto feature (default).
 [[advisories.ignore]]
 id = "RUSTSEC-2023-0071"
-reason = "The aws-lc-rs backend has addressed this vulnerability in current versions. Users wanting to avoid it completely can use the rust_crypto feature (which is now default)."
+reason = "This can be removed as soon as rsa crate received a fix."

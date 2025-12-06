@@ -40,7 +40,7 @@ jobs:
               run: cargo fmt --all -- --check
 
     clippy:
-        name: Clippy (all targets; rust_crypto and aws_lc_rs)
+        name: Clippy (all targets)
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
@@ -63,12 +63,8 @@ jobs:
               run: |
                   # Run clippy for combinations that include storage-seaorm
                   cargo clippy --workspace --all-targets --features storage-surrealdb,storage-seaorm -- -D warnings
-                  # Run clippy for combinations that include storage-seaorm-v2 (mutually exclusive from storage-seaorm)
-                  cargo clippy --all-targets --features storage-surrealdb,storage-seaorm-v2 -- -D warnings
-                  # Run clippy for no-default-features variants (seaorm)
-                  cargo clippy --all-targets --no-default-features --features server,aws_lc_rs,storage-surrealdb,storage-seaorm -- -D warnings
-                  # Run clippy for no-default-features variants (seaorm-v2)
-                  cargo clippy --all-targets --no-default-features --features server,aws_lc_rs,storage-surrealdb,storage-seaorm-v2 -- -D warnings
+                  # Run clippy for SeaORM
+                  cargo clippy --all-targets --features storage-surrealdb,storage-seaorm -- -D warnings
 
     test-core:
         name: Core test matrix
@@ -80,28 +76,19 @@ jobs:
                 include:
                     - name: default_features
                       cmd: cargo test --workspace
-                    - name: aws_lc_rs_with_seaorm
-                      cmd: cargo test --no-default-features --features server,aws_lc_rs,storage-seaorm
-                    - name: aws_lc_rs_with_seaorm_v2
-                      cmd: cargo test --no-default-features --features server,aws_lc_rs,storage-seaorm-v2
+
                     - name: insecure_fast_hash
                       cmd: cargo test --workspace --features insecure-fast-hash
                     - name: storage_surrealdb
                       cmd: cargo test --workspace --features storage-surrealdb
                     - name: storage_seaorm
                       cmd: cargo test --workspace --features storage-seaorm
-                    - name: storage_seaorm_v2
-                      cmd: cargo test --features storage-seaorm-v2
                     - name: all_storage_features
                       cmd: cargo test --workspace --features storage-surrealdb,storage-seaorm
-                    - name: all_storage_features_v2
-                      cmd: cargo test --features storage-surrealdb,storage-seaorm-v2
                     - name: fast_hash_with_surrealdb
                       cmd: cargo test --workspace --features insecure-fast-hash,storage-surrealdb
                     - name: fast_hash_with_seaorm
                       cmd: cargo test --workspace --features insecure-fast-hash,storage-seaorm
-                    - name: fast_hash_with_seaorm_v2
-                      cmd: cargo test --features insecure-fast-hash,storage-seaorm-v2
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -301,16 +288,13 @@ jobs:
                 include:
                     - name: default
                       args: "--default-features"
-                    - name: aws_lc_rs
-                      args: "--only-explicit-features --features aws_lc_rs,server"
+
                     - name: insecure-fast-hash
                       args: "--only-explicit-features --features default,insecure-fast-hash"
                     - name: storage-surrealdb
                       args: "--only-explicit-features --features default,storage-surrealdb"
                     - name: storage-seaorm
                       args: "--only-explicit-features --features default,storage-seaorm"
-                    - name: storage-seaorm-v2
-                      args: "--only-explicit-features --features default,storage-seaorm-v2"
                     - name: audit-logging
                       args: "--only-explicit-features --features default,audit-logging"
                     - name: prometheus

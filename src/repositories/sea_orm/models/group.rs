@@ -9,8 +9,6 @@
 use crate::groups::GroupEntity;
 #[cfg(feature = "storage-seaorm")]
 use sea_orm::{ActiveValue, entity::prelude::*};
-#[cfg(feature = "storage-seaorm-v2")]
-use sea_orm_v2::{ActiveValue, entity::prelude::*};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 /// SeaORM entity for a persisted group.
