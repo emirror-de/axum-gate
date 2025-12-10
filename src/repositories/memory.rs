@@ -160,41 +160,52 @@ where
     R: AccessHierarchy + Eq + Send + Sync + 'static,
     G: Eq + Clone + Send + Sync + 'static,
 {
+    /// Lookup by the logical login identifier (`user_id`).
+    ///
+    /// The in-memory store's primary key is the stable `account_id` (UUID string).
+    /// To fetch by `user_id` we scan the values; this is acceptable for tests and
+    /// small datasets but should not be used as a model for production storage.
     async fn query_account_by_user_id(&self, user_id: &str) -> Result<Option<Account<R, G>>> {
         let read = self.accounts.read().await;
-        Ok(read.get(user_id).cloned())
-    }
-
-    /// Query an account by its `account_id` field.
-    ///
-    /// Since the in-memory repository stores accounts keyed by `user_id`, this
-    /// performs a scan of the values to find a matching `account_id`. This is
-    /// acceptable for tests and small datasets; production backends SHOULD index
-    /// `account_id` for efficient lookup.
-    async fn query_account_by_id(&self, account_id: &str) -> Result<Option<Account<R, G>>> {
-        let read = self.accounts.read().await;
         for acc in read.values() {
-            if acc.account_id.to_string().as_str() == account_id {
+            if acc.user_id == user_id {
                 return Ok(Some(acc.clone()));
             }
         }
         Ok(None)
     }
 
+    /// Query an account by its `account_id` field.
+    ///
+    /// The in-memory repository stores accounts keyed by the stable `account_id`
+    /// (UUID string). This makes direct lookups efficient.
+    async fn query_account_by_id(&self, account_id: &Uuid) -> Result<Option<Account<R, G>>> {
+        let read = self.accounts.read().await;
+        let key = account_id.to_string();
+        Ok(read.get(&key).cloned())
+    }
+
+    /// Store an account using the stable `account_id` as the map key while
+    /// preserving the `user_id` field inside the `Account`.
     async fn store_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
-        let id = account.user_id.clone();
+        let id = account.account_id.to_string();
         let mut write = self.accounts.write().await;
         write.insert(id, account.clone());
         Ok(Some(account))
     }
-    async fn delete_account(&self, account_id: &str) -> Result<Option<Account<R, G>>> {
+
+    /// Delete an account by its stable `account_id` (UUID).
+    async fn delete_account(&self, account_id: &Uuid) -> Result<Option<Account<R, G>>> {
         let mut write = self.accounts.write().await;
-        if !write.contains_key(account_id) {
+        let key = account_id.to_string();
+        if !write.contains_key(&key) {
             return Ok(None);
         }
-        Ok(write.remove(account_id))
+        Ok(write.remove(&key))
     }
+
     async fn update_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
+        // Reuse store semantics: upsert by account_id
         self.store_account(account).await
     }
 

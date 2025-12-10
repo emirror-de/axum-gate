@@ -115,12 +115,16 @@ where
 {
     async fn query_account_by_user_id(&self, user_id: &str) -> Result<Option<Account<R, G>>> {
         self.use_ns_db().await?;
-        let db_account: Option<Account<R, G>> = self
+
+        // Use a SELECT query to find the account by `user_id` rather than assuming
+        // the storage record key equals the login identifier. This avoids coupling
+        // the persisted record key to a mutable/login value.
+        let query = "SELECT * FROM type::table($table) WHERE user_id = $uid LIMIT 1";
+        let mut res = self
             .db
-            .select(RecordId::from_table_key(
-                &self.scope_settings.accounts,
-                user_id,
-            ))
+            .query(query)
+            .bind(("table", self.scope_settings.accounts.clone()))
+            .bind(("uid", user_id.to_string()))
             .await
             .map_err(|e| {
                 Error::Database(DatabaseError::with_context(
@@ -130,19 +134,26 @@ where
                     Some(user_id.to_string()),
                 ))
             })?;
-        Ok(db_account)
+
+        // Extract the first result row as the domain Account if present.
+        res.take::<Option<Account<R, G>>>(0).map_err(|e| {
+            Error::Database(DatabaseError::with_context(
+                DatabaseOperation::Query,
+                format!("Failed to extract account by user_id: {}", e),
+                Some(self.scope_settings.accounts.clone()),
+                Some(user_id.to_string()),
+            ))
+        })
     }
 
-    async fn query_account_by_id(&self, account_id: &str) -> Result<Option<Account<R, G>>> {
+    async fn query_account_by_id(&self, account_id: &Uuid) -> Result<Option<Account<R, G>>> {
         self.use_ns_db().await?;
-        // Compose a RecordId from the configured accounts table and the account_id,
-        // then perform a direct select. This mirrors `query_account_by_user_id`'s
-        // approach and avoids constructing a custom query string.
+
         let db_account: Option<Account<R, G>> = self
             .db
             .select(RecordId::from_table_key(
                 &self.scope_settings.accounts,
-                account_id,
+                *account_id,
             ))
             .await
             .map_err(|e| {
@@ -158,8 +169,9 @@ where
 
     async fn store_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
         self.use_ns_db().await?;
+
         let record_id =
-            RecordId::from_table_key(self.scope_settings.accounts.clone(), &account.user_id);
+            RecordId::from_table_key(self.scope_settings.accounts.clone(), account.account_id);
         let user_id = account.user_id.clone();
         let db_account: Option<Account<R, G>> = self
             .db
@@ -177,13 +189,14 @@ where
         Ok(db_account)
     }
 
-    async fn delete_account(&self, user_id: &str) -> Result<Option<Account<R, G>>> {
+    async fn delete_account(&self, account_id: &Uuid) -> Result<Option<Account<R, G>>> {
         self.use_ns_db().await?;
+
         let db_account: Option<Account<R, G>> = self
             .db
             .delete(RecordId::from_table_key(
                 self.scope_settings.accounts.clone(),
-                user_id,
+                *account_id,
             ))
             .await
             .map_err(|e| {
@@ -191,7 +204,7 @@ where
                     DatabaseOperation::Delete,
                     format!("Failed to delete account: {}", e),
                     Some(self.scope_settings.accounts.clone()),
-                    Some(user_id.to_string()),
+                    Some(account_id.to_string()),
                 ))
             })?;
         Ok(db_account)
@@ -199,8 +212,9 @@ where
 
     async fn update_account(&self, account: Account<R, G>) -> Result<Option<Account<R, G>>> {
         self.use_ns_db().await?;
+
         let record_id =
-            RecordId::from_table_key(self.scope_settings.accounts.clone(), &account.user_id);
+            RecordId::from_table_key(self.scope_settings.accounts.clone(), account.account_id);
         let db_account: Option<Account<R, G>> = self.db.update(&record_id).content(account).await?;
         Ok(db_account)
     }

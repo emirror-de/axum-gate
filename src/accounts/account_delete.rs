@@ -77,7 +77,13 @@ where
         debug!(%user_id, %account_id, "Secret removed for account");
 
         // Delete the account second. If this fails, attempt to restore the secret.
-        if account_repository.delete_account(user_id).await?.is_none() {
+        // Use the stable internal `account_id` (UUID) for repository deletion so storage
+        // backends operate on the immutable PK and secrets can be referenced reliably.
+        if account_repository
+            .delete_account(account_id)
+            .await?
+            .is_none()
+        {
             error!(%user_id, %account_id, "Account deletion failed; attempting secret restore");
             let restore_result = secret_repository.store_secret(secret).await;
             match restore_result {
