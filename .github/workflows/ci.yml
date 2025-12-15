@@ -305,7 +305,7 @@ jobs:
                     - name: prometheus
                       args: "--only-explicit-features --features default,prometheus"
                     - name: wasm
-                      args: "--only-explicit-features --no-default-features --features wasm"
+                      args: "--only-explicit-features --features wasm"
         steps:
             - name: Checkout
               uses: actions/checkout@v4

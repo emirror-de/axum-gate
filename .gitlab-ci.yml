@@ -218,7 +218,7 @@ cargo_semver_checks_wasm:
     stage: security
     script:
         - cargo install cargo-semver-checks
-        - cargo semver-checks check-release --only-explicit-features --no-default-features --features wasm
+        - cargo semver-checks check-release --only-explicit-features --features wasm
     allow_failure: false
     only:
         - merge_requests
