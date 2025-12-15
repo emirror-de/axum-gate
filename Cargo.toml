@@ -83,7 +83,6 @@ server = [
     "dep:serde_json",
     "dep:serde_with",
     "dep:subtle",
-    "dep:thiserror",
     "tokio/rt-multi-thread",
     "dep:tower",
     "dep:tracing",
@@ -117,7 +116,7 @@ serde_with = { workspace = true, optional = true }
 strum = { workspace = true }
 subtle = { workspace = true, optional = true }
 surrealdb = { workspace = true, optional = true }
-thiserror = { workspace = true, optional = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
 tracing = { workspace = true, features = ["release_max_level_info"], optional = true }
