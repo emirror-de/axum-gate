@@ -156,7 +156,6 @@ mod as_permission_name;
 mod collision_checker;
 #[cfg(feature = "server")]
 pub mod errors;
-#[cfg(feature = "server")]
 pub mod mapping;
 #[cfg(feature = "server")]
 mod permission_collision;
