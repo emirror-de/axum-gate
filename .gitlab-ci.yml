@@ -46,6 +46,8 @@ clippy_check:
     script:
         # Run clippy for combinations that include storage-surrealdb,storage-seaorm
         - cargo clippy --workspace --all-targets --features storage-surrealdb,storage-seaorm -- -D warnings
+        # Run clippy for wasm feature (no default features)
+        - cargo clippy --workspace --all-targets --no-default-features --features wasm -- -D warnings
     allow_failure: false
 
 # Test stage jobs - Core tests
@@ -54,6 +56,14 @@ test_default_features:
     stage: test
     script:
         - cargo test --workspace
+    allow_failure: false
+
+# Run tests for wasm feature (no default features)
+test_wasm:
+    <<: *rust_job
+    stage: test
+    script:
+        - cargo test --workspace --no-default-features --features wasm
     allow_failure: false
 
 # Individual feature tests
@@ -196,6 +206,19 @@ cargo_semver_checks_prometheus:
     script:
         - cargo install cargo-semver-checks
         - cargo semver-checks check-release --only-explicit-features --features prometheus,default
+    allow_failure: false
+    only:
+        - merge_requests
+        - nightly
+        - /^version\/.*$/
+
+# Semver checks for wasm feature (no default features)
+cargo_semver_checks_wasm:
+    <<: *rust_job
+    stage: security
+    script:
+        - cargo install cargo-semver-checks
+        - cargo semver-checks check-release --only-explicit-features --no-default-features --features wasm
     allow_failure: false
     only:
         - merge_requests

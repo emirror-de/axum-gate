@@ -65,6 +65,8 @@ jobs:
                   cargo clippy --workspace --all-targets --features storage-surrealdb,storage-seaorm -- -D warnings
                   # Run clippy for SeaORM
                   cargo clippy --all-targets --features storage-surrealdb,storage-seaorm -- -D warnings
+                  # Run clippy for wasm feature (no default features)
+                  cargo clippy --workspace --all-targets --no-default-features --features wasm -- -D warnings
 
     test-core:
         name: Core test matrix
@@ -76,6 +78,9 @@ jobs:
                 include:
                     - name: default_features
                       cmd: cargo test --workspace
+
+                    - name: wasm
+                      cmd: cargo test --workspace --no-default-features --features wasm
 
                     - name: insecure_fast_hash
                       cmd: cargo test --workspace --features insecure-fast-hash
@@ -299,6 +304,8 @@ jobs:
                       args: "--only-explicit-features --features default,audit-logging"
                     - name: prometheus
                       args: "--only-explicit-features --features default,prometheus"
+                    - name: wasm
+                      args: "--only-explicit-features --no-default-features --features wasm"
         steps:
             - name: Checkout
               uses: actions/checkout@v4

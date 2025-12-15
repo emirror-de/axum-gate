@@ -71,6 +71,7 @@ uuid = { version = "1" }
 
 [features]
 default = ["server"]
+wasm = ["uuid/js"]
 server = [
     "dep:argon2",
     "dep:axum",
