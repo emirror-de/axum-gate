@@ -71,8 +71,9 @@ use crate::groups::{GroupEntity, GroupRepository};
 use crate::hashing::HashingService;
 use crate::hashing::argon2::Argon2Hasher;
 use crate::permissions::PermissionId;
-use crate::permissions::mapping::PermissionMapping;
-use crate::permissions::mapping::PermissionMappingRepository;
+use crate::permissions::mapping::{
+    PermissionMapping, PermissionMappingRepository, PermissionMappingRepositoryBulk,
+};
 use crate::repositories::{RepositoriesError, RepositoryOperation, RepositoryType};
 use crate::secrets::Secret;
 use crate::secrets::SecretRepository;
@@ -653,4 +654,97 @@ impl PermissionMappingRepository for MemoryPermissionMappingRepository {
 /// the PermissionId implementation to ensure consistency.
 fn normalize_permission(input: &str) -> String {
     input.trim().to_lowercase()
+}
+
+impl PermissionMappingRepositoryBulk for MemoryPermissionMappingRepository {
+    async fn store_mappings(
+        &self,
+        mappings: Vec<PermissionMapping>,
+    ) -> Result<Vec<PermissionMapping>> {
+        // Validate all mappings first to match the single-store semantics
+        for mapping in &mappings {
+            if let Err(e) = mapping.validate() {
+                return Err(Error::Repositories(RepositoriesError::operation_failed(
+                    RepositoryType::PermissionMapping,
+                    RepositoryOperation::Insert,
+                    format!("Invalid permission mapping in bulk store: {}", e),
+                    None,
+                    Some("store_mappings".to_string()),
+                )));
+            }
+        }
+
+        let mut stored: Vec<PermissionMapping> = Vec::new();
+
+        // Acquire write lock once and perform deduplicated inserts
+        let mut vec_write = self.mappings.write().await;
+
+        for mapping in mappings {
+            let id = mapping.permission_id().as_u64();
+            let normalized = mapping.normalized_string();
+
+            // skip if already present either in existing storage or already stored in this batch
+            let exists_in_storage = vec_write
+                .iter()
+                .any(|m| m.permission_id().as_u64() == id || m.normalized_string() == normalized);
+            let exists_in_batch = stored
+                .iter()
+                .any(|m| m.permission_id().as_u64() == id || m.normalized_string() == normalized);
+
+            if exists_in_storage || exists_in_batch {
+                // skip duplicates silently (same behaviour as single-store returning Ok(None))
+                continue;
+            }
+
+            vec_write.push(mapping.clone());
+            stored.push(mapping);
+        }
+
+        Ok(stored)
+    }
+
+    async fn remove_mappings_by_ids(
+        &self,
+        ids: Vec<PermissionId>,
+    ) -> Result<Vec<PermissionMapping>> {
+        let mut removed: Vec<PermissionMapping> = Vec::new();
+
+        let mut vec_write = self.mappings.write().await;
+
+        for id in ids {
+            let id_u64 = id.as_u64();
+            if let Some(pos) = vec_write
+                .iter()
+                .position(|m| m.permission_id().as_u64() == id_u64)
+            {
+                let r = vec_write.swap_remove(pos);
+                removed.push(r);
+            } else {
+                // silently ignore non-existing ids
+                continue;
+            }
+        }
+
+        Ok(removed)
+    }
+
+    async fn query_mappings_by_ids(
+        &self,
+        ids: Vec<PermissionId>,
+    ) -> Result<Vec<PermissionMapping>> {
+        let vec_read = self.mappings.read().await;
+        let mut out: Vec<PermissionMapping> = Vec::new();
+
+        for id in ids {
+            let id_u64 = id.as_u64();
+            if let Some(found) = vec_read
+                .iter()
+                .find(|m| m.permission_id().as_u64() == id_u64)
+            {
+                out.push(found.clone());
+            }
+        }
+
+        Ok(out)
+    }
 }

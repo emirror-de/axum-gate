@@ -11,8 +11,9 @@ use crate::groups::{GroupEntity, GroupRepository};
 use crate::hashing::HashingService;
 use crate::hashing::argon2::Argon2Hasher;
 use crate::permissions::PermissionId;
-use crate::permissions::mapping::PermissionMapping;
-use crate::permissions::mapping::PermissionMappingRepository;
+use crate::permissions::mapping::{
+    PermissionMapping, PermissionMappingRepository, PermissionMappingRepositoryBulk,
+};
 use crate::repositories::{DatabaseError, DatabaseOperation};
 use crate::secrets::{Secret, SecretRepository};
 use crate::verification_result::VerificationResult;
@@ -829,6 +830,247 @@ where
             })?;
             out.push(dom);
         }
+        Ok(out)
+    }
+}
+
+impl<S> PermissionMappingRepositoryBulk for SurrealDbRepository<S>
+where
+    S: Connection,
+{
+    async fn store_mappings(
+        &self,
+        mappings: Vec<PermissionMapping>,
+    ) -> Result<Vec<PermissionMapping>> {
+        // Validate all mappings first (match single-store validation behavior)
+        for mapping in &mappings {
+            if let Err(e) = mapping.validate() {
+                return Err(Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Insert,
+                    format!("Invalid permission mapping in bulk store: {}", e),
+                    Some(self.scope_settings.permission_mappings.clone()),
+                    None,
+                )));
+            }
+        }
+
+        self.use_ns_db().await?;
+
+        // Short-circuit for empty input
+        if mappings.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Collect permission_id strings for a single existence check (each ID maps to one normalized string)
+        let ids: Vec<String> = mappings
+            .iter()
+            .map(|m| m.permission_id().as_u64().to_string())
+            .collect();
+
+        // Query once for any existing records that match any pid.
+        // Using a single IN query reduces round-trips compared to per-item checks.
+        let mut existing_pids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        if !ids.is_empty() {
+            let query = "SELECT * FROM type::table($table) WHERE permission_id IN $pids";
+            let mut res = self
+                .db
+                .query(query)
+                .bind(("table", self.scope_settings.permission_mappings.clone()))
+                .bind(("pids", ids.clone()))
+                .await
+                .map_err(|e| {
+                    Error::Database(DatabaseError::with_context(
+                        DatabaseOperation::Query,
+                        format!("Failed to query existing mappings for bulk insert: {}", e),
+                        Some(self.scope_settings.permission_mappings.clone()),
+                        None,
+                    ))
+                })?;
+
+            let existing: Vec<SurrealPermissionMapping> = res.take(0).map_err(|e| {
+                Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Query,
+                    format!("Failed to extract existing mappings for bulk insert: {}", e),
+                    Some(self.scope_settings.permission_mappings.clone()),
+                    None,
+                ))
+            })?;
+
+            for e in existing {
+                existing_pids.insert(e.permission_id);
+            }
+        }
+
+        // Filter mappings to only those that don't already exist (checking ids is sufficient)
+        let mut to_insert: Vec<PermissionMapping> = Vec::new();
+        for m in mappings {
+            let pid = m.permission_id().as_u64().to_string();
+            if existing_pids.contains(&pid) {
+                // skip existing
+                continue;
+            }
+            to_insert.push(m);
+        }
+
+        // Insert remaining mappings. We still insert per-record because the client
+        // driver does not expose a safe multi-insert here, but we've eliminated
+        // the N existence-check round-trips.
+        let mut stored: Vec<PermissionMapping> = Vec::new();
+        for mapping in to_insert {
+            // Use the normalized string as record key as in single-store
+            let record_id = RecordId::from_table_key(
+                self.scope_settings.permission_mappings.clone(),
+                mapping.normalized_string(),
+            );
+
+            // Explicitly annotate the result type to help the compiler infer the correct
+            // driver/record mapping and to disambiguate the TryFrom impl later.
+            let stored_spm: Option<SurrealPermissionMapping> = self
+                .db
+                .insert(&record_id)
+                .content(SurrealPermissionMapping::from(mapping.clone()))
+                .await
+                .map_err(|e| {
+                    // If the insert fails due to a concurrency-created uniqueness issue,
+                    // map that into an infrastructure error here and let the caller decide.
+                    Error::Database(DatabaseError::with_context(
+                        DatabaseOperation::Insert,
+                        format!("Failed to store permission mapping in bulk: {}", e),
+                        Some(self.scope_settings.permission_mappings.clone()),
+                        None,
+                    ))
+                })?;
+
+            if let Some(spm) = stored_spm {
+                let dom = PermissionMapping::try_from(spm).map_err(|e| {
+                    Error::Database(DatabaseError::with_context(
+                        DatabaseOperation::Insert,
+                        format!("Failed to convert stored permission mapping in bulk: {}", e),
+                        Some(self.scope_settings.permission_mappings.clone()),
+                        None,
+                    ))
+                })?;
+                stored.push(dom);
+            } else {
+                // unexpected but skip
+                continue;
+            }
+        }
+
+        Ok(stored)
+    }
+
+    async fn remove_mappings_by_ids(
+        &self,
+        ids: Vec<PermissionId>,
+    ) -> Result<Vec<PermissionMapping>> {
+        self.use_ns_db().await?;
+
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Convert ids to strings and perform a single DELETE ... IN (...) RETURN BEFORE
+        let pid_strs: Vec<String> = ids.iter().map(|id| id.as_u64().to_string()).collect();
+
+        let query = "DELETE type::table($table) WHERE permission_id IN $pids RETURN BEFORE";
+        let mut res = self
+            .db
+            .query(query)
+            .bind(("table", self.scope_settings.permission_mappings.clone()))
+            .bind(("pids", pid_strs.clone()))
+            .await
+            .map_err(|e| {
+                Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Delete,
+                    format!("Failed to delete permission mappings in bulk: {}", e),
+                    Some(self.scope_settings.permission_mappings.clone()),
+                    None,
+                ))
+            })?;
+
+        // Extract deleted records and convert to domain objects
+        let removed_vec: Vec<SurrealPermissionMapping> = res.take(0).map_err(|e| {
+            Error::Database(DatabaseError::with_context(
+                DatabaseOperation::Delete,
+                format!(
+                    "Failed to extract deleted permission mappings in bulk: {}",
+                    e
+                ),
+                Some(self.scope_settings.permission_mappings.clone()),
+                None,
+            ))
+        })?;
+
+        let mut removed: Vec<PermissionMapping> = Vec::with_capacity(removed_vec.len());
+        for spm in removed_vec {
+            let dom = PermissionMapping::try_from(spm).map_err(|e| {
+                Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Delete,
+                    format!(
+                        "Failed to convert deleted permission mapping in bulk: {}",
+                        e
+                    ),
+                    Some(self.scope_settings.permission_mappings.clone()),
+                    None,
+                ))
+            })?;
+            removed.push(dom);
+        }
+
+        Ok(removed)
+    }
+
+    async fn query_mappings_by_ids(
+        &self,
+        ids: Vec<PermissionId>,
+    ) -> Result<Vec<PermissionMapping>> {
+        self.use_ns_db().await?;
+
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Build list of permission_id strings and query once using IN
+        let pid_strs: Vec<String> = ids.iter().map(|id| id.as_u64().to_string()).collect();
+        let query = "SELECT * FROM type::table($table) WHERE permission_id IN $pids";
+        let mut res = self
+            .db
+            .query(query)
+            .bind(("table", self.scope_settings.permission_mappings.clone()))
+            .bind(("pids", pid_strs.clone()))
+            .await
+            .map_err(|e| {
+                Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Query,
+                    format!("Failed to query permission mappings in bulk: {}", e),
+                    Some(self.scope_settings.permission_mappings.clone()),
+                    None,
+                ))
+            })?;
+
+        let found: Vec<SurrealPermissionMapping> = res.take(0).map_err(|e| {
+            Error::Database(DatabaseError::with_context(
+                DatabaseOperation::Query,
+                format!("Failed to extract permission mappings in bulk: {}", e),
+                Some(self.scope_settings.permission_mappings.clone()),
+                None,
+            ))
+        })?;
+
+        let mut out: Vec<PermissionMapping> = Vec::with_capacity(found.len());
+        for spm in found {
+            let dom = PermissionMapping::try_from(spm).map_err(|e| {
+                Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Query,
+                    format!("Failed to convert permission mapping in bulk query: {}", e),
+                    Some(self.scope_settings.permission_mappings.clone()),
+                    None,
+                ))
+            })?;
+            out.push(dom);
+        }
+
         Ok(out)
     }
 }
