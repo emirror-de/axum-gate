@@ -776,38 +776,13 @@ impl PermissionMappingRepositoryBulk for SeaOrmRepository {
                 ))
             })?;
 
-        // Query back the models for the inserted permission_ids. This will return the
-        // newly inserted rows or existing rows if concurrent writers inserted them.
-        let models = seaorm_permission_mapping::Entity::find()
-            .filter(seaorm_permission_mapping::Column::PermissionId.is_in(insert_pids.clone()))
-            .all(&self.db)
-            .await
-            .map_err(|e| {
-                Error::Database(DatabaseError::with_context(
-                    DatabaseOperation::Query,
-                    format!(
-                        "Failed to query permission mappings after bulk insert: {}",
-                        e
-                    ),
-                    Some(TableName::AxumGatePermissionMappings.to_string()),
-                    None,
-                ))
-            })?;
-
-        let mut out: Vec<PermissionMapping> = Vec::with_capacity(models.len());
-        for m in models {
-            let dom = PermissionMapping::try_from(m).map_err(|e| {
-                Error::Database(DatabaseError::with_context(
-                    DatabaseOperation::Query,
-                    format!("Failed to convert permission mapping: {}", e),
-                    Some(TableName::AxumGatePermissionMappings.to_string()),
-                    None,
-                ))
-            })?;
-            out.push(dom);
-        }
-
-        Ok(out)
+        // We can return ownership of the domain objects we prepared for insertion.
+        // `to_insert` contains the PermissionMapping values that were not present
+        // prior to the bulk insert. Because we constructed the ActiveModels from
+        // clones of these domain objects and executed `ON CONFLICT DO NOTHING`,
+        // the items in `to_insert` represent the intended stored mappings. Returning
+        // them avoids an extra round-trip and redundant conversion from DB models.
+        Ok(to_insert)
     }
 
     async fn remove_mappings_by_ids(

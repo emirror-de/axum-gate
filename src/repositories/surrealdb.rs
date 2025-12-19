@@ -923,16 +923,17 @@ where
                 mapping.normalized_string(),
             );
 
-            // Explicitly annotate the result type to help the compiler infer the correct
-            // driver/record mapping and to disambiguate the TryFrom impl later.
-            let stored_spm: Option<SurrealPermissionMapping> = self
+            // Perform the insert. We don't need to convert the returned DB model
+            // back into a domain object because the domain value we just inserted
+            // (`mapping`) is authoritative and deterministic. If the insert returns
+            // an object, it's a representation of the same data; we therefore
+            // record the original domain object on success.
+            let insert_res: Option<SurrealPermissionMapping> = self
                 .db
                 .insert(&record_id)
                 .content(SurrealPermissionMapping::from(mapping.clone()))
                 .await
                 .map_err(|e| {
-                    // If the insert fails due to a concurrency-created uniqueness issue,
-                    // map that into an infrastructure error here and let the caller decide.
                     Error::Database(DatabaseError::with_context(
                         DatabaseOperation::Insert,
                         format!("Failed to store permission mapping in bulk: {}", e),
@@ -941,16 +942,9 @@ where
                     ))
                 })?;
 
-            if let Some(spm) = stored_spm {
-                let dom = PermissionMapping::try_from(spm).map_err(|e| {
-                    Error::Database(DatabaseError::with_context(
-                        DatabaseOperation::Insert,
-                        format!("Failed to convert stored permission mapping in bulk: {}", e),
-                        Some(self.scope_settings.permission_mappings.clone()),
-                        None,
-                    ))
-                })?;
-                stored.push(dom);
+            if insert_res.is_some() {
+                // Move the domain object into the returned list (no extra conversion)
+                stored.push(mapping);
             } else {
                 // unexpected but skip
                 continue;
