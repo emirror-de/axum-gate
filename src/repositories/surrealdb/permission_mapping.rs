@@ -7,6 +7,7 @@ use crate::permissions::mapping::{
 use crate::repositories::{DatabaseError, DatabaseOperation};
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use surrealdb::{Connection, RecordId};
 
 /// Adapter for persisting `PermissionMapping` in SurrealDB.
@@ -370,7 +371,7 @@ where
 
         // Query once for any existing records that match any pid.
         // Using a single IN query reduces round-trips compared to per-item checks.
-        let mut existing_pids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut existing_pids: HashSet<String> = HashSet::new();
         if !ids.is_empty() {
             let query = "SELECT * FROM type::table($table) WHERE permission_id IN $pids";
             let mut res = self
