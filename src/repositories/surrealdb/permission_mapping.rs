@@ -329,7 +329,7 @@ where
         // Because SurrealDB currently does not support bulk insertions, we need to do
         // a one by one insertion.
         for spm in mappings.iter() {
-            if let None = self.store_mapping(spm.clone()).await? {
+            if self.store_mapping(spm.clone()).await?.is_none() {
                 return Err(Error::Database(DatabaseError::with_context(
                     DatabaseOperation::Insert,
                     "Failed to store permission mapping in bulk: no record returned".to_string(),
