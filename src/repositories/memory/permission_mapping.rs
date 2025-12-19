@@ -24,16 +24,14 @@ use tokio::sync::RwLock;
 ///
 /// # Storage Strategy
 ///
-/// Mappings are stored in two hash maps for efficient lookup:
-/// - `mappings_by_id: HashMap<u64, PermissionMapping>` for primary lookup by id
-/// - `id_by_normalized: HashMap<String, u64>` for lookup by normalized string
+/// Mappings are stored in a hash map keyed by `PermissionId` for efficient lookup.
 ///
 /// This avoids scanning a Vec for common operations and makes bulk insertion,
 /// deduplication and lookups O(1) on average.
 #[derive(Debug)]
 pub struct MemoryPermissionMappingRepository {
-    /// Primary store keyed by numeric PermissionId
-    mappings_by_id: Arc<RwLock<HashMap<u64, PermissionMapping>>>,
+    /// Primary store keyed by PermissionId
+    mappings_by_id: Arc<RwLock<HashMap<PermissionId, PermissionMapping>>>,
 }
 
 impl Default for MemoryPermissionMappingRepository {
@@ -46,7 +44,7 @@ impl Default for MemoryPermissionMappingRepository {
 
 impl From<Vec<PermissionMapping>> for MemoryPermissionMappingRepository {
     fn from(mappings: Vec<PermissionMapping>) -> Self {
-        let mut by_id: HashMap<u64, PermissionMapping> = HashMap::new();
+        let mut by_id: HashMap<PermissionId, PermissionMapping> = HashMap::new();
 
         for mapping in mappings {
             // Validate the mapping before storing
@@ -55,7 +53,7 @@ impl From<Vec<PermissionMapping>> for MemoryPermissionMappingRepository {
                 continue;
             }
 
-            let id = mapping.permission_id().as_u64();
+            let id = mapping.permission_id();
 
             // Skip if id already present
             if by_id.contains_key(&id) {
@@ -84,7 +82,7 @@ impl PermissionMappingRepository for MemoryPermissionMappingRepository {
             )));
         }
 
-        let id = mapping.permission_id().as_u64();
+        let id = mapping.permission_id();
 
         // Fast read check
         {
@@ -108,10 +106,8 @@ impl PermissionMappingRepository for MemoryPermissionMappingRepository {
     }
 
     async fn remove_mapping_by_id(&self, id: PermissionId) -> Result<Option<PermissionMapping>> {
-        let id_u64 = id.as_u64();
-
         let mut write_by_id = self.mappings_by_id.write().await;
-        if let Some(removed) = write_by_id.remove(&id_u64) {
+        if let Some(removed) = write_by_id.remove(&id) {
             Ok(Some(removed))
         } else {
             Ok(None)
@@ -126,7 +122,7 @@ impl PermissionMappingRepository for MemoryPermissionMappingRepository {
 
         // Acquire write lock and search for the mapping by normalized string
         let mut write_by_id = self.mappings_by_id.write().await;
-        let mut found_key: Option<u64> = None;
+        let mut found_key: Option<PermissionId> = None;
         for (k, v) in write_by_id.iter() {
             if v.normalized_string() == normalized.as_str() {
                 found_key = Some(*k);
@@ -134,8 +130,8 @@ impl PermissionMappingRepository for MemoryPermissionMappingRepository {
             }
         }
 
-        if let Some(id_u64) = found_key {
-            if let Some(removed) = write_by_id.remove(&id_u64) {
+        if let Some(id) = found_key {
+            if let Some(removed) = write_by_id.remove(&id) {
                 return Ok(Some(removed));
             }
         }
@@ -145,7 +141,7 @@ impl PermissionMappingRepository for MemoryPermissionMappingRepository {
 
     async fn query_mapping_by_id(&self, id: PermissionId) -> Result<Option<PermissionMapping>> {
         let read = self.mappings_by_id.read().await;
-        Ok(read.get(&id.as_u64()).cloned())
+        Ok(read.get(&id).cloned())
     }
 
     async fn query_mapping_by_string(&self, permission: &str) -> Result<Option<PermissionMapping>> {
@@ -197,7 +193,7 @@ impl PermissionMappingRepositoryBulk for MemoryPermissionMappingRepository {
         let mut write_by_id = self.mappings_by_id.write().await;
 
         for mapping in mappings {
-            let id = mapping.permission_id().as_u64();
+            let id = mapping.permission_id();
 
             // If id already present, skip
             if write_by_id.contains_key(&id) {
@@ -221,8 +217,7 @@ impl PermissionMappingRepositoryBulk for MemoryPermissionMappingRepository {
         let mut write_by_id = self.mappings_by_id.write().await;
 
         for id in ids {
-            let id_u64 = id.as_u64();
-            if let Some(r) = write_by_id.remove(&id_u64) {
+            if let Some(r) = write_by_id.remove(&id) {
                 removed.push(r);
             } else {
                 // silently ignore non-existing ids
@@ -241,7 +236,7 @@ impl PermissionMappingRepositoryBulk for MemoryPermissionMappingRepository {
         let mut out: Vec<PermissionMapping> = Vec::new();
 
         for id in ids {
-            if let Some(found) = read_by_id.get(&id.as_u64()) {
+            if let Some(found) = read_by_id.get(&id) {
                 out.push(found.clone());
             }
         }
