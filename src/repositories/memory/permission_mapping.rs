@@ -131,9 +131,10 @@ impl PermissionMappingRepository for MemoryPermissionMappingRepository {
         }
 
         if let Some(id) = found_key
-            && let Some(removed) = write_by_id.remove(&id) {
-                return Ok(Some(removed));
-            }
+            && let Some(removed) = write_by_id.remove(&id)
+        {
+            return Ok(Some(removed));
+        }
 
         Ok(None)
     }
