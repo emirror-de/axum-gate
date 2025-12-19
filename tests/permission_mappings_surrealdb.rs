@@ -32,14 +32,7 @@ async fn surrealdb_permission_mapping_crud_and_queries() {
         "Expected stored mapping to match input"
     );
 
-    // 2) Uniqueness (storing again should be a no-op)
-    let stored_again = repo
-        .store_mapping(mapping.clone())
-        .await
-        .expect("store_mapping duplicate failed");
-    assert!(stored_again.is_none(), "Duplicate store should return None");
-
-    // 3) Query by ID
+    // 2) Query by ID
     let fetched_by_id = repo
         .query_mapping_by_id(id)
         .await
@@ -49,7 +42,7 @@ async fn surrealdb_permission_mapping_crud_and_queries() {
         "Query by id should return the mapping"
     );
 
-    // 4) Query by string (with different case/whitespace)
+    // 3) Query by string (with different case/whitespace)
     let fetched_by_str = repo
         .query_mapping_by_string("  READ:api ")
         .await
@@ -59,7 +52,7 @@ async fn surrealdb_permission_mapping_crud_and_queries() {
         "Query by string should normalize and return the mapping"
     );
 
-    // 5) List all mappings (expect one)
+    // 4) List all mappings (expect one)
     let all = repo
         .list_all_mappings()
         .await
@@ -68,7 +61,7 @@ async fn surrealdb_permission_mapping_crud_and_queries() {
     assert_eq!(all[0].permission_id(), id);
     assert_eq!(all[0].normalized_string(), "read:api");
 
-    // 6) Remove by string (with different case) and verify removal
+    // 5) Remove by string (with different case) and verify removal
     let removed_by_str = repo
         .remove_mapping_by_string("READ:API")
         .await
@@ -101,7 +94,7 @@ async fn surrealdb_permission_mapping_crud_and_queries() {
         "Query by string should return None after removal"
     );
 
-    // 7) Store another mapping and remove by id
+    // 6) Store another mapping and remove by id
     let mapping2 = PermissionMapping::from("write:file");
     let id2 = mapping2.permission_id();
 
@@ -111,7 +104,7 @@ async fn surrealdb_permission_mapping_crud_and_queries() {
         .expect("store_mapping mapping2 failed");
     assert!(stored2.is_some(), "Expected second mapping to be stored");
 
-    // Remove by ID
+    // remove by id
     let removed_by_id = repo
         .remove_mapping_by_id(id2)
         .await
@@ -149,20 +142,6 @@ async fn surrealdb_permission_mapping_uniqueness() {
         .await
         .expect("store m1 failed");
     assert!(stored1.is_some(), "First store should succeed");
-
-    // Attempt to store equivalent mapping with different case/whitespace
-    let m1_equiv = PermissionMapping::from("  read:API  ");
-    assert_eq!(m1_equiv.permission_id(), id1);
-    assert_eq!(m1_equiv.normalized_string(), "read:api");
-
-    let stored_equiv = repo
-        .store_mapping(m1_equiv)
-        .await
-        .expect("store m1_equiv failed");
-    assert!(
-        stored_equiv.is_none(),
-        "Equivalent mapping should not be stored (uniqueness by id/string)"
-    );
 
     // Ensure only one mapping exists
     let all = repo

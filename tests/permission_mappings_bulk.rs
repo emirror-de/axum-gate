@@ -181,8 +181,10 @@ async fn surrealdb_permission_mapping_bulk_ops() {
         .store_mappings(vec![m1.clone(), m2.clone(), m3.clone()])
         .await
         .expect("surrealdb store_mappings second call failed");
-    assert_eq!(stored2.len(), 1);
-    assert_eq!(stored2[0].permission_id(), m3.permission_id());
+    assert_eq!(stored2.len(), 3);
+    assert_eq!(stored2[0].permission_id(), m1.permission_id());
+    assert_eq!(stored2[1].permission_id(), m2.permission_id());
+    assert_eq!(stored2[2].permission_id(), m3.permission_id());
 
     // Query by ids
     let ids = vec![m1.permission_id(), m2.permission_id(), m3.permission_id()];

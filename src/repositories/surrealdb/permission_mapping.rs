@@ -7,7 +7,6 @@ use crate::permissions::mapping::{
 use crate::repositories::{DatabaseError, DatabaseOperation};
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use surrealdb::{Connection, RecordId};
 
 /// Adapter for persisting `PermissionMapping` in SurrealDB.
@@ -23,13 +22,18 @@ use surrealdb::{Connection, RecordId};
 /// can be queried when reversing from human-readable permission names to ids.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SurrealPermissionMapping {
+    /// Explicit record id allows creating multiple records in a single
+    /// CREATE/UPSERT ... CONTENT query by providing per-item record keys.
+    id: RecordId,
     normalized_string: String,
     permission_id: String,
 }
 
-impl From<PermissionMapping> for SurrealPermissionMapping {
-    fn from(m: PermissionMapping) -> Self {
+impl SurrealPermissionMapping {
+    /// Build a SurrealPermissionMapping with a concrete RecordId for the given table.
+    fn with_record_id(table: String, m: &PermissionMapping) -> Self {
         Self {
+            id: RecordId::from_table_key(table.clone(), m.permission_id().as_u64().to_string()),
             normalized_string: m.normalized_string().to_string(),
             permission_id: m.permission_id().as_u64().to_string(),
         }
@@ -56,10 +60,16 @@ impl<S> PermissionMappingRepository for SurrealDbRepository<S>
 where
     S: Connection,
 {
+    /// Store a single mapping.
+    ///
+    /// NOTE: We do not perform explicit existence checks before inserting.
+    /// The repository uses the permission ID as the SurrealDB record key, so
+    /// subsequent inserts with the same key will simply overwrite or be a no-op
+    /// depending on the backend behavior. We preserve validation and map driver
+    /// errors into repository errors.
     async fn store_mapping(&self, mapping: PermissionMapping) -> Result<Option<PermissionMapping>> {
         // Validate the mapping first
         if let Err(e) = mapping.validate() {
-            // Treat validation failures as infrastructure-safe errors for this backend
             return Err(Error::Database(DatabaseError::with_context(
                 DatabaseOperation::Insert,
                 format!("Invalid permission mapping: {}", e),
@@ -70,46 +80,22 @@ where
 
         self.use_ns_db().await?;
 
-        // Enforce uniqueness by permission ID (direct WHERE query)
-        let query_id = "SELECT * FROM type::table($table) WHERE permission_id = $pid LIMIT 1";
-        let mut res_id = self
-            .db
-            .query(query_id)
-            .bind(("table", self.scope_settings.permission_mappings.clone()))
-            .bind(("pid", mapping.permission_id().as_u64().to_string()))
-            .await
-            .map_err(|e| {
-                Error::Database(DatabaseError::with_context(
-                    DatabaseOperation::Query,
-                    format!("Failed to check existing mapping by id: {}", e),
-                    Some(self.scope_settings.permission_mappings.clone()),
-                    Some(mapping.permission_id().as_u64().to_string()),
-                ))
-            })?;
-        let exists_by_id: Vec<SurrealPermissionMapping> = res_id.take(0).map_err(|e| {
-            Error::Database(DatabaseError::with_context(
-                DatabaseOperation::Query,
-                format!("Failed to extract existing mapping by id: {}", e),
-                Some(self.scope_settings.permission_mappings.clone()),
-                Some(mapping.permission_id().as_u64().to_string()),
-            ))
-        })?;
-        if !exists_by_id.is_empty() {
-            return Ok(None);
-        }
-
         // Use permission_id as record key for the insert
         let record_id = RecordId::from_table_key(
             self.scope_settings.permission_mappings.clone(),
             mapping.permission_id().as_u64().to_string(),
         );
 
-        let stored_spm: Option<SurrealPermissionMapping> = self
-            .db
-            .insert(&record_id)
-            .content(SurrealPermissionMapping::from(mapping))
-            .await
-            .map_err(|e| {
+        // Build DB representation that includes explicit id.
+        let spm = SurrealPermissionMapping::with_record_id(
+            self.scope_settings.permission_mappings.clone(),
+            &mapping,
+        );
+
+        // Perform the upsert. We consider the domain object we attempted to insert
+        // as authoritative on success.
+        let insert_res: Option<SurrealPermissionMapping> =
+            self.db.upsert(&record_id).content(spm).await.map_err(|e| {
                 Error::Database(DatabaseError::with_context(
                     DatabaseOperation::Insert,
                     format!("Failed to store permission mapping: {}", e),
@@ -118,22 +104,12 @@ where
                 ))
             })?;
 
-        let stored = match stored_spm {
-            Some(spm) => {
-                let dom = PermissionMapping::try_from(spm).map_err(|e| {
-                    Error::Database(DatabaseError::with_context(
-                        DatabaseOperation::Insert,
-                        format!("Failed to convert stored permission mapping: {}", e),
-                        Some(self.scope_settings.permission_mappings.clone()),
-                        None,
-                    ))
-                })?;
-                Some(dom)
-            }
-            None => None,
-        };
-
-        Ok(stored)
+        if insert_res.is_some() {
+            Ok(Some(mapping))
+        } else {
+            // Backend returned no record for some reason; treat as not stored.
+            Ok(None)
+        }
     }
 
     async fn remove_mapping_by_id(&self, id: PermissionId) -> Result<Option<PermissionMapping>> {
@@ -180,7 +156,6 @@ where
             .to_string();
 
         // Delete directly by normalized string and return the removed record (if any)
-        // We keep this behavior: remove by normalized_string field.
         let query = "DELETE type::table($table) WHERE normalized_string = $ns RETURN BEFORE";
         let mut res = self
             .db
@@ -344,18 +319,6 @@ where
         &self,
         mappings: Vec<PermissionMapping>,
     ) -> Result<Vec<PermissionMapping>> {
-        // Validate all mappings first (match single-store validation behavior)
-        for mapping in &mappings {
-            if let Err(e) = mapping.validate() {
-                return Err(Error::Database(DatabaseError::with_context(
-                    DatabaseOperation::Insert,
-                    format!("Invalid permission mapping in bulk store: {}", e),
-                    Some(self.scope_settings.permission_mappings.clone()),
-                    None,
-                )));
-            }
-        }
-
         self.use_ns_db().await?;
 
         // Short-circuit for empty input
@@ -363,97 +326,20 @@ where
             return Ok(Vec::new());
         }
 
-        // Collect permission_id strings for a single existence check (each ID maps to one normalized string)
-        let ids: Vec<String> = mappings
-            .iter()
-            .map(|m| m.permission_id().as_u64().to_string())
-            .collect();
-
-        // Query once for any existing records that match any pid.
-        // Using a single IN query reduces round-trips compared to per-item checks.
-        let mut existing_pids: HashSet<String> = HashSet::new();
-        if !ids.is_empty() {
-            let query = "SELECT * FROM type::table($table) WHERE permission_id IN $pids";
-            let mut res = self
-                .db
-                .query(query)
-                .bind(("table", self.scope_settings.permission_mappings.clone()))
-                .bind(("pids", ids.clone()))
-                .await
-                .map_err(|e| {
-                    Error::Database(DatabaseError::with_context(
-                        DatabaseOperation::Query,
-                        format!("Failed to query existing mappings for bulk insert: {}", e),
-                        Some(self.scope_settings.permission_mappings.clone()),
-                        None,
-                    ))
-                })?;
-
-            let existing: Vec<SurrealPermissionMapping> = res.take(0).map_err(|e| {
-                Error::Database(DatabaseError::with_context(
-                    DatabaseOperation::Query,
-                    format!("Failed to extract existing mappings for bulk insert: {}", e),
+        // Because SurrealDB currently does not support bulk insertions, we need to do
+        // a one by one insertion.
+        for spm in mappings.iter() {
+            if let None = self.store_mapping(spm.clone()).await? {
+                return Err(Error::Database(DatabaseError::with_context(
+                    DatabaseOperation::Insert,
+                    "Failed to store permission mapping in bulk: no record returned".to_string(),
                     Some(self.scope_settings.permission_mappings.clone()),
                     None,
-                ))
-            })?;
-
-            for e in existing {
-                existing_pids.insert(e.permission_id);
-            }
+                )));
+            };
         }
 
-        // Filter mappings to only those that don't already exist (checking ids is sufficient)
-        let mut to_insert: Vec<PermissionMapping> = Vec::new();
-        for m in mappings {
-            let pid = m.permission_id().as_u64().to_string();
-            if existing_pids.contains(&pid) {
-                // skip existing
-                continue;
-            }
-            to_insert.push(m);
-        }
-
-        // Insert remaining mappings. We still insert per-record because the client
-        // driver does not expose a safe multi-insert here, but we've eliminated
-        // the N existence-check round-trips.
-        let mut stored: Vec<PermissionMapping> = Vec::new();
-        for mapping in to_insert {
-            // Use the permission_id string as record key
-            let record_id = RecordId::from_table_key(
-                self.scope_settings.permission_mappings.clone(),
-                mapping.permission_id().as_u64().to_string(),
-            );
-
-            // Perform the insert. We don't need to convert the returned DB model
-            // back into a domain object because the domain value we just inserted
-            // (`mapping`) is authoritative and deterministic. If the insert returns
-            // an object, it's a representation of the same data; we therefore
-            // record the original domain object on success.
-            let insert_res: Option<SurrealPermissionMapping> = self
-                .db
-                .insert(&record_id)
-                .content(SurrealPermissionMapping::from(mapping.clone()))
-                .await
-                .map_err(|e| {
-                    Error::Database(DatabaseError::with_context(
-                        DatabaseOperation::Insert,
-                        format!("Failed to store permission mapping in bulk: {}", e),
-                        Some(self.scope_settings.permission_mappings.clone()),
-                        None,
-                    ))
-                })?;
-
-            if insert_res.is_some() {
-                // Move the domain object into the returned list (no extra conversion)
-                stored.push(mapping);
-            } else {
-                // unexpected but skip
-                continue;
-            }
-        }
-
-        Ok(stored)
+        Ok(mappings)
     }
 
     async fn remove_mappings_by_ids(
@@ -467,7 +353,6 @@ where
         }
 
         // Convert ids to strings and perform a single DELETE ... IN (...) RETURN BEFORE
-        // We keep using WHERE permission_id IN (...) since permission_id is also stored as a field.
         let pid_strs: Vec<String> = ids.iter().map(|id| id.as_u64().to_string()).collect();
 
         let query = "DELETE type::table($table) WHERE permission_id IN $pids RETURN BEFORE";
