@@ -101,29 +101,51 @@ impl PermissionMappingRepository for SeaOrmRepository {
         })?;
 
         // Fetch existing to return it
-        let model_opt = match seaorm_permission_mapping::Entity::find()
-            .filter(seaorm_permission_mapping::Column::PermissionId.eq(id_str.clone()))
-            .one(&txn)
-            .await
-        {
-            Ok(v) => v,
-            Err(e) => {
-                // Best-effort rollback on error, then return a mapped error.
-                let _ = txn.rollback().await;
-                return Err(Error::Database(DatabaseError::with_context(
-                    DatabaseOperation::Query,
-                    format!("Failed to query permission mapping by id: {}", e),
-                    Some(TableName::AxumGatePermissionMappings.to_string()),
-                    Some(id_str.clone()),
-                )));
-            }
-        };
+        let model_opt =
+            match seaorm_permission_mapping::Entity::find()
+                .filter(seaorm_permission_mapping::Column::PermissionId.eq(id_str.clone()))
+                .one(&txn)
+                .await
+            {
+                Ok(v) => v,
+                Err(e) => {
+                    // Best-effort rollback on error, but handle rollback failures explicitly.
+                    if let Err(rb_err) = txn.rollback().await {
+                        return Err(Error::Repositories(
+                        crate::errors::RepositoriesError::operation_failed(
+                            crate::errors::RepositoryType::PermissionMapping,
+                            crate::errors::RepositoryOperation::Delete,
+                            format!("Failed to rollback transaction after query error: {}", rb_err),
+                            None,
+                            Some("During rollback of transaction for delete within existing check."
+                                .to_string()),
+                        ),
+                    ));
+                    }
+                    return Err(Error::Database(DatabaseError::with_context(
+                        DatabaseOperation::Query,
+                        format!("Failed to query permission mapping by id: {}", e),
+                        Some(TableName::AxumGatePermissionMappings.to_string()),
+                        Some(id_str.clone()),
+                    )));
+                }
+            };
 
         let model = match model_opt {
             Some(m) => m,
             None => {
-                // Nothing to delete; rollback transaction and return None
-                let _ = txn.rollback();
+                // Nothing to delete; attempt rollback and handle rollback failure explicitly.
+                if let Err(rb_err) = txn.rollback().await {
+                    return Err(Error::Repositories(
+                        crate::errors::RepositoriesError::operation_failed(
+                            crate::errors::RepositoryType::PermissionMapping,
+                            crate::errors::RepositoryOperation::Delete,
+                            format!("Failed to rollback transaction: {}", rb_err),
+                            None,
+                            Some("During rollback of transaction for delete.".to_string()),
+                        ),
+                    ));
+                }
                 return Ok(None);
             }
         };
@@ -133,8 +155,18 @@ impl PermissionMappingRepository for SeaOrmRepository {
             .exec(&txn)
             .await
         {
-            // Rollback and return mapped error
-            let _ = txn.rollback().await;
+            // Attempt rollback and return an explicit Repositories error if rollback fails.
+            if let Err(rb_err) = txn.rollback().await {
+                return Err(Error::Repositories(
+                    crate::errors::RepositoriesError::operation_failed(
+                        crate::errors::RepositoryType::PermissionMapping,
+                        crate::errors::RepositoryOperation::Delete,
+                        format!("Failed to rollback transaction after delete error: {}", rb_err),
+                        Some(id_str.clone()),
+                        Some("During rollback of transaction for delete while deleting with primary key.".to_string()),
+                    ),
+                ));
+            }
             return Err(Error::Database(DatabaseError::with_context(
                 DatabaseOperation::Delete,
                 format!("Failed to delete permission mapping by id: {}", e),
@@ -190,7 +222,21 @@ impl PermissionMappingRepository for SeaOrmRepository {
         {
             Ok(v) => v,
             Err(e) => {
-                let _ = txn.rollback().await;
+                // Handle rollback failure explicitly
+                if let Err(rb_err) = txn.rollback().await {
+                    return Err(Error::Repositories(
+                        crate::errors::RepositoriesError::operation_failed(
+                            crate::errors::RepositoryType::PermissionMapping,
+                            crate::errors::RepositoryOperation::Get,
+                            format!(
+                                "Failed to rollback transaction after query error: {}",
+                                rb_err
+                            ),
+                            None,
+                            Some("During rollback of transaction after query error".to_string()),
+                        ),
+                    ));
+                }
                 return Err(Error::Database(DatabaseError::with_context(
                     DatabaseOperation::Query,
                     format!("Failed to query permission mapping by string: {}", e),
@@ -203,7 +249,20 @@ impl PermissionMappingRepository for SeaOrmRepository {
         let model = match model_opt {
             Some(m) => m,
             None => {
-                let _ = txn.rollback();
+                // Attempt rollback and surface a repository-level error if rollback fails
+                if let Err(rb_err) = txn.rollback().await {
+                    return Err(Error::Repositories(
+                        crate::errors::RepositoriesError::operation_failed(
+                            crate::errors::RepositoryType::PermissionMapping,
+                            crate::errors::RepositoryOperation::Delete,
+                            format!("Failed to rollback transaction: {}", rb_err),
+                            None,
+                            Some(
+                                "During rollback of transaction for delete by string.".to_string(),
+                            ),
+                        ),
+                    ));
+                }
                 return Ok(None);
             }
         };
@@ -212,7 +271,21 @@ impl PermissionMappingRepository for SeaOrmRepository {
             .exec(&txn)
             .await
         {
-            let _ = txn.rollback().await;
+            // Attempt rollback and report explicit repository error if rollback fails.
+            if let Err(rb_err) = txn.rollback().await {
+                return Err(Error::Repositories(
+                    crate::errors::RepositoriesError::operation_failed(
+                        crate::errors::RepositoryType::PermissionMapping,
+                        crate::errors::RepositoryOperation::Delete,
+                        format!(
+                            "Failed to rollback transaction after delete error: {}",
+                            rb_err
+                        ),
+                        None,
+                        Some("During rollback of transaction for delete by string.".to_string()),
+                    ),
+                ));
+            }
             return Err(Error::Database(DatabaseError::with_context(
                 DatabaseOperation::Delete,
                 format!("Failed to delete permission mapping by string: {}", e),
