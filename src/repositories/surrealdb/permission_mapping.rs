@@ -16,6 +16,10 @@ use surrealdb::{Connection, RecordId};
 /// positive i63 range. Persisting `permission_id` as a `String` avoids
 /// signedness/width pitfalls across different SurrealDB backends and ensures
 /// stable round‑trips regardless of how numbers are represented internally.
+///
+/// NOTE: The record key for permission mappings is the `permission_id`
+/// (stringified). The `normalized_string` is stored as a regular field and
+/// can be queried when reversing from human-readable permission names to ids.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SurrealPermissionMapping {
     normalized_string: String,
@@ -93,25 +97,12 @@ where
             return Ok(None);
         }
 
-        // Enforce uniqueness by normalized string (record key)
+        // Use permission_id as record key for the insert
         let record_id = RecordId::from_table_key(
             self.scope_settings.permission_mappings.clone(),
-            mapping.normalized_string(),
+            mapping.permission_id().as_u64().to_string(),
         );
-        let exists_by_string: Option<SurrealPermissionMapping> =
-            self.db.select(&record_id).await.map_err(|e| {
-                Error::Database(DatabaseError::with_context(
-                    DatabaseOperation::Query,
-                    format!("Failed to check existing mapping by string: {}", e),
-                    Some(self.scope_settings.permission_mappings.clone()),
-                    None,
-                ))
-            })?;
-        if exists_by_string.is_some() {
-            return Ok(None);
-        }
 
-        // Insert mapping using normalized string as the record key
         let stored_spm: Option<SurrealPermissionMapping> = self
             .db
             .insert(&record_id)
@@ -147,15 +138,13 @@ where
     async fn remove_mapping_by_id(&self, id: PermissionId) -> Result<Option<PermissionMapping>> {
         self.use_ns_db().await?;
 
-        // Delete directly by permission_id and return the removed record (if any)
-        let query = "DELETE type::table($table) WHERE permission_id = $pid RETURN BEFORE";
-        let mut res = self
-            .db
-            .query(query)
-            .bind(("table", self.scope_settings.permission_mappings.clone()))
-            .bind(("pid", id.as_u64().to_string()))
-            .await
-            .map_err(|e| {
+        // Delete directly by record id (permission_id used as key) and return the removed record (if any)
+        let record_id = RecordId::from_table_key(
+            self.scope_settings.permission_mappings.clone(),
+            id.as_u64().to_string(),
+        );
+        let removed_spm: Option<SurrealPermissionMapping> =
+            self.db.delete(record_id).await.map_err(|e| {
                 Error::Database(DatabaseError::with_context(
                     DatabaseOperation::Delete,
                     format!("Failed to delete permission mapping by id: {}", e),
@@ -164,18 +153,7 @@ where
                 ))
             })?;
 
-        let removed: Vec<SurrealPermissionMapping> = res.take(0).map_err(|e| {
-            Error::Database(DatabaseError::with_context(
-                DatabaseOperation::Delete,
-                format!("Failed to extract deleted permission mapping: {}", e),
-                Some(self.scope_settings.permission_mappings.clone()),
-                Some(id.as_u64().to_string()),
-            ))
-        })?;
-
-        removed
-            .into_iter()
-            .next()
+        removed_spm
             .map(|spm| {
                 PermissionMapping::try_from(spm).map_err(|e| {
                     Error::Database(DatabaseError::with_context(
@@ -201,6 +179,7 @@ where
             .to_string();
 
         // Delete directly by normalized string and return the removed record (if any)
+        // We keep this behavior: remove by normalized_string field.
         let query = "DELETE type::table($table) WHERE normalized_string = $ns RETURN BEFORE";
         let mut res = self
             .db
@@ -245,35 +224,23 @@ where
     async fn query_mapping_by_id(&self, id: PermissionId) -> Result<Option<PermissionMapping>> {
         self.use_ns_db().await?;
 
-        // Direct WHERE query by permission_id
-        let query = "SELECT * FROM type::table($table) WHERE permission_id = $pid LIMIT 1";
-        let mut res = self
-            .db
-            .query(query)
-            .bind(("table", self.scope_settings.permission_mappings.clone()))
-            .bind(("pid", id.as_u64().to_string()))
-            .await
-            .map_err(|e| {
+        // Direct select by record key (permission_id used as the record id)
+        let record_id = RecordId::from_table_key(
+            self.scope_settings.permission_mappings.clone(),
+            id.as_u64().to_string(),
+        );
+
+        let mapping_spm: Option<SurrealPermissionMapping> =
+            self.db.select(record_id).await.map_err(|e| {
                 Error::Database(DatabaseError::with_context(
                     DatabaseOperation::Query,
                     format!("Failed to query permission mapping by id: {}", e),
                     Some(self.scope_settings.permission_mappings.clone()),
-                    None,
+                    Some(id.as_u64().to_string()),
                 ))
             })?;
 
-        let found: Vec<SurrealPermissionMapping> = res.take(0).map_err(|e| {
-            Error::Database(DatabaseError::with_context(
-                DatabaseOperation::Query,
-                format!("Failed to extract permission mapping by id: {}", e),
-                Some(self.scope_settings.permission_mappings.clone()),
-                Some(id.as_u64().to_string()),
-            ))
-        })?;
-
-        found
-            .into_iter()
-            .next()
+        mapping_spm
             .map(|spm| {
                 PermissionMapping::try_from(spm).map_err(|e| {
                     Error::Database(DatabaseError::with_context(
@@ -294,14 +261,15 @@ where
             .normalized_string()
             .to_string();
 
-        // Direct select by record key (normalized string)
-        let record_id = RecordId::from_table_key(
-            self.scope_settings.permission_mappings.clone(),
-            normalized.clone(),
-        );
-
-        let mapping_spm: Option<SurrealPermissionMapping> =
-            self.db.select(record_id).await.map_err(|e| {
+        // Query by normalized_string field (since the record key is now permission_id)
+        let query = "SELECT * FROM type::table($table) WHERE normalized_string = $ns LIMIT 1";
+        let mut res = self
+            .db
+            .query(query)
+            .bind(("table", self.scope_settings.permission_mappings.clone()))
+            .bind(("ns", normalized.clone()))
+            .await
+            .map_err(|e| {
                 Error::Database(DatabaseError::with_context(
                     DatabaseOperation::Query,
                     format!("Failed to query permission mapping by string: {}", e),
@@ -310,7 +278,18 @@ where
                 ))
             })?;
 
-        mapping_spm
+        let found: Vec<SurrealPermissionMapping> = res.take(0).map_err(|e| {
+            Error::Database(DatabaseError::with_context(
+                DatabaseOperation::Query,
+                format!("Failed to extract permission mapping by string: {}", e),
+                Some(self.scope_settings.permission_mappings.clone()),
+                None,
+            ))
+        })?;
+
+        found
+            .into_iter()
+            .next()
             .map(|spm| {
                 PermissionMapping::try_from(spm).map_err(|e| {
                     Error::Database(DatabaseError::with_context(
@@ -439,10 +418,10 @@ where
         // the N existence-check round-trips.
         let mut stored: Vec<PermissionMapping> = Vec::new();
         for mapping in to_insert {
-            // Use the normalized string as record key as in single-store
+            // Use the permission_id string as record key
             let record_id = RecordId::from_table_key(
                 self.scope_settings.permission_mappings.clone(),
-                mapping.normalized_string(),
+                mapping.permission_id().as_u64().to_string(),
             );
 
             // Perform the insert. We don't need to convert the returned DB model
@@ -487,6 +466,7 @@ where
         }
 
         // Convert ids to strings and perform a single DELETE ... IN (...) RETURN BEFORE
+        // We keep using WHERE permission_id IN (...) since permission_id is also stored as a field.
         let pid_strs: Vec<String> = ids.iter().map(|id| id.as_u64().to_string()).collect();
 
         let query = "DELETE type::table($table) WHERE permission_id IN $pids RETURN BEFORE";
@@ -547,7 +527,7 @@ where
             return Ok(Vec::new());
         }
 
-        // Build list of permission_id strings and query once using IN
+        // Build list of permission_id strings and query once using IN (we still use the field)
         let pid_strs: Vec<String> = ids.iter().map(|id| id.as_u64().to_string()).collect();
         let query = "SELECT * FROM type::table($table) WHERE permission_id IN $pids";
         let mut res = self

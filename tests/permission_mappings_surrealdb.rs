@@ -5,6 +5,8 @@ use axum_gate::permissions::{
     mapping::{PermissionMapping, PermissionMappingRepository},
 };
 use axum_gate::repositories::surrealdb::{DatabaseScope, SurrealDbRepository};
+use serde_json::Value;
+use surrealdb::RecordId;
 use surrealdb::Surreal;
 use surrealdb::engine::local::Mem;
 
@@ -14,8 +16,10 @@ async fn surrealdb_permission_mapping_crud_and_queries() {
     let db = Surreal::new::<Mem>(())
         .await
         .expect("Failed to create SurrealDB Mem engine");
+    // Keep a clone of the engine so tests can inspect raw records by RecordId
+    let db_clone = db.clone();
     let scope = DatabaseScope::default();
-    let repo = SurrealDbRepository::new(db, scope).unwrap();
+    let repo = SurrealDbRepository::new(db, scope.clone()).unwrap();
 
     // 1) Store a mapping
     let mapping = PermissionMapping::from("Read:API");
@@ -28,6 +32,18 @@ async fn surrealdb_permission_mapping_crud_and_queries() {
     assert!(
         matches!(stored, Some(m) if m.permission_id() == id && m.normalized_string() == "read:api"),
         "Expected stored mapping to match input"
+    );
+
+    // Verify underlying record exists under permission_id RecordId key
+    let record_id =
+        RecordId::from_table_key(scope.permission_mappings.clone(), id.as_u64().to_string());
+    let raw: Option<Value> = db_clone
+        .select(record_id)
+        .await
+        .expect("Raw select by RecordId failed");
+    assert!(
+        raw.is_some(),
+        "Expected raw DB record keyed by permission_id"
     );
 
     // 2) Uniqueness (storing again should be a no-op)
