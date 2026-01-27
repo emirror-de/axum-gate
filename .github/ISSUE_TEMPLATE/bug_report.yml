@@ -49,7 +49,7 @@ body:
               database version (if applicable): PostgreSQL 15 / MySQL 8 / SQLite
               other relevant deps: tower=x.y.z, hyper=x.y.z, tracing=x.y.z
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: reproduction_steps

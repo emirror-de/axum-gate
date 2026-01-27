@@ -39,7 +39,7 @@ body:
               - Performance and tuning
               - Other/unsure
       validations:
-          required: true
+          required: false
 
     - type: input
       id: crate_version
@@ -48,7 +48,7 @@ body:
           description: Exact version from Cargo.lock (preferred) or Cargo.toml.
           placeholder: e.g., 0.3.4
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: environment
@@ -65,7 +65,7 @@ body:
               backend in use: memory / sea-orm / surrealdb
               database version (if applicable): PostgreSQL 15 / MySQL 8 / SQLite
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: goal
@@ -76,7 +76,7 @@ body:
               Example: "I want to protect routes with JWTs and map claims to permissions,
               then return 403 when the user lacks the 'admin:write' permission."
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: configuration
@@ -130,7 +130,7 @@ body:
           description: What did you expect to happen?
           placeholder: e.g., "Requests with a valid JWT should receive 200 OK; invalid tokens should receive 401 with WWW-Authenticate header."
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: actual_behavior
@@ -139,7 +139,7 @@ body:
           description: What actually happens?
           placeholder: e.g., "Receiving 500 with error body ..." or "Middleware not invoked ..."
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: troubleshooting
@@ -153,7 +153,7 @@ body:
               - Tried alternative configuration ...
               - Updated to latest patch version ...
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: logs

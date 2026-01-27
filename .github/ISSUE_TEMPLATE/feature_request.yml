@@ -23,7 +23,7 @@ body:
               - label: I reviewed the README and docs to ensure this isn't already supported
                 required: true
               - label: I considered alternatives or workarounds and describe them below
-                required: true
+                required: false
               - label: The scope is minimal and focused on a single feature
                 required: true
 
@@ -51,7 +51,7 @@ body:
               Who is impacted (library users, service operators)?
               How do you handle this today and what is suboptimal?
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: proposed_solution
@@ -62,7 +62,7 @@ body:
               Summarize the feature and how it addresses the problem.
               Call out user experience, ergonomics, and expected outcomes.
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: api_design
@@ -91,7 +91,7 @@ body:
               ```
           render: markdown
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: use_cases
@@ -111,7 +111,7 @@ body:
               ```
           render: markdown
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: alternatives
@@ -123,7 +123,7 @@ body:
               - Alternative B (feature flag on existing type) — rejected because ...
               - Status quo — insufficient because ...
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: prior_art
@@ -148,7 +148,7 @@ body:
               - "Yes (hard break)"
               - "Not sure"
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: breaking_detail
@@ -175,7 +175,7 @@ body:
               - "Yes (new feature)"
               - "Unsure"
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: configuration
@@ -201,7 +201,7 @@ body:
               - Avoid logging sensitive fields
               - Least-privilege defaults
       validations:
-          required: true
+          required: false
 
     - type: textarea
       id: performance
@@ -251,7 +251,7 @@ body:
               - [ ] Feature is gated behind "xyz" Cargo feature
               - [ ] No public API breaking changes without deprecation path
       validations:
-          required: true
+          required: false
 
     - type: checkboxes
       id: contribution_readiness
