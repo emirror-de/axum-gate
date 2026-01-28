@@ -23,6 +23,33 @@ body:
               - label: I have a minimal reproduction demonstrating the issue
                 required: true
 
+    - type: dropdown
+      id: severity
+      attributes:
+          label: Impact/severity
+          description: How severe is this issue for you?
+          options:
+              - "Blocker (cannot proceed)"
+              - "High (major functionality broken)"
+              - "Medium (workable but degraded)"
+              - "Low (minor issue or annoyance)"
+      validations:
+          required: false
+
+    - type: dropdown
+      id: reproducibility
+      attributes:
+          label: Reproducibility
+          description: How often does this occur?
+          options:
+              - "Always"
+              - "Often"
+              - "Rarely"
+              - "Once"
+              - "Cannot reproduce again"
+      validations:
+          required: false
+
     - type: input
       id: crate_version
       attributes:
@@ -36,20 +63,39 @@ body:
       id: environment
       attributes:
           label: Environment
-          description: Provide details about your environment. Run `rustc --version` and include the output.
+          description: Brief environment details (rustc --version, OS).
           placeholder: |
-              OS: macOS 14.5 (Apple Silicon) / Ubuntu 22.04 / Windows 11
-              Architecture: x86_64 / aarch64
-              Rust toolchain: stable-x.y.z / nightly-yyyy-mm-dd
-              rustc: rustc 1.xx.x (commit-hash yyyy-mm-dd)
-              axum: x.y.z
-              tokio: x.y.z
-              feature flags (axum-gate): ["serde", "sea-orm", "surrealdb", ...]
-              backend in use: memory / sea-orm / surrealdb
-              database version (if applicable): PostgreSQL 15 / MySQL 8 / SQLite
-              other relevant deps: tower=x.y.z, hyper=x.y.z, tracing=x.y.z
+              OS: macOS/Ubuntu/Windows
+              rustc: rustc 1.xx.x (commit yyyy-mm-dd)
+              axum/tokio versions: x.y.z
       validations:
           required: false
+
+    - type: dropdown
+      id: backend
+      attributes:
+          label: Storage/backend in use
+          description: Select the backend involved in this issue.
+          options:
+              - "memory"
+              - "sea-orm"
+              - "surrealdb"
+              - "other/unsure"
+      validations:
+          required: false
+
+    - type: checkboxes
+      id: feature_flags
+      attributes:
+          label: axum-gate feature flags enabled
+          description: Select all that apply.
+          options:
+              - label: serde
+              - label: sea-orm
+              - label: surrealdb
+              - label: tracing
+              - label: tower-http
+              - label: other (describe in Additional context)
 
     - type: textarea
       id: reproduction_steps
@@ -64,24 +110,23 @@ body:
       validations:
           required: true
 
+    - type: input
+      id: minimal_repro_link
+      attributes:
+          label: Minimal reproducible example (link)
+          description: Link to a minimal repo or gist that reproduces the issue.
+          placeholder: https://github.com/... or https://gist.github.com/...
+      validations:
+          required: false
+
     - type: textarea
       id: minimal_code
       attributes:
-          label: Minimal reproducible code
-          description: Include the smallest possible code snippet that reproduces the bug. If larger, link to a gist or repo.
+          label: Minimal reproducible code (optional)
+          description: Paste a short snippet if it helps (link preferred).
           placeholder: |
               ```rust
-              // Cargo.toml (relevant)
-              // [dependencies]
-              // axum = "0.8"
-              // tokio = { version = "1", features = ["full"] }
-              // axum-gate = "<version>"
-
-              #[tokio::main]
-              async fn main() -> Result<(), Box<dyn std::error::Error>> {
-                  // minimal setup that triggers the issue
-                  Ok(())
-              }
+              // minimal snippet (optional)
               ```
           render: markdown
       validations:
@@ -109,7 +154,7 @@ body:
       id: logs
       attributes:
           label: Relevant logs, error messages, and backtraces
-          description: Include sanitized logs and errors. Do not paste secrets; redact sensitive values.
+          description: Include sanitized logs and errors (consider RUST_BACKTRACE=1 and RUST_LOG=debug; redact sensitive values).
           placeholder: |
               ```text
               2025-01-01T12:34:56Z ERROR axum_gate::...: validation failed: invalid token
@@ -129,13 +174,13 @@ body:
               - "No"
               - "Not sure"
       validations:
-          required: false
+          required: true
 
     - type: input
       id: prior_working_version
       attributes:
           label: Previously working version (if regression)
-          description: If this is a regression, what version(s) worked previously?
+          description: Required when regression = Yes. What version(s) worked previously?
           placeholder: e.g., axum-gate 0.3.2, axum 0.8.5
       validations:
           required: false
@@ -145,7 +190,7 @@ body:
       attributes:
           label: Additional context
           description: Any other context, links, or screenshots about the problem.
-          placeholder: Workarounds attempted, hypotheses, related PRs, etc.
+          placeholder: Related PRs, hypotheses, edge cases, or notes about feature flags/backends.
       validations:
           required: false
 

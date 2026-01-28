@@ -7,7 +7,7 @@ body:
     - type: markdown
       attributes:
           value: |
-              Thanks for opening a support question! To help us help you quickly, please provide concrete details.
+              Thanks for opening a support question! For general Q&A or brainstorming, please prefer GitHub Discussions; use this form when you need maintainer help troubleshooting.
               Do not include secrets, tokens, or PII. Redact with placeholders like "<REDACTED:JWT>" or "<REDACTED:PASSWORD>".
 
     - type: checkboxes
@@ -61,9 +61,20 @@ body:
               Rust toolchain: stable-x.y.z / nightly-yyyy-mm-dd
               rustc: rustc 1.xx.x (commit yyyy-mm-dd)
               axum: x.y.z, tokio: x.y.z, hyper: x.y.z, tracing: x.y.z
-              axum-gate features: ["serde","sea-orm","surrealdb",...]
-              backend in use: memory / sea-orm / surrealdb
               database version (if applicable): PostgreSQL 15 / MySQL 8 / SQLite
+      validations:
+          required: false
+
+    - type: dropdown
+      id: backend
+      attributes:
+          label: Storage/backend in use
+          description: Select the backend involved in your question.
+          options:
+              - memory
+              - sea-orm
+              - surrealdb
+              - other/unsure
       validations:
           required: false
 
@@ -76,7 +87,7 @@ body:
               Example: "I want to protect routes with JWTs and map claims to permissions,
               then return 403 when the user lacks the 'admin:write' permission."
       validations:
-          required: false
+          required: true
 
     - type: textarea
       id: configuration
@@ -167,6 +178,15 @@ body:
               Caused by: ...
               ```
           render: text
+      validations:
+          required: false
+
+    - type: input
+      id: minimal_repro_link
+      attributes:
+          label: Minimal reproducible example (link)
+          description: Link to a minimal repo or gist that demonstrates the issue/question.
+          placeholder: https://github.com/... or https://gist.github.com/...
       validations:
           required: false
 

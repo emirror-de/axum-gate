@@ -51,7 +51,7 @@ body:
               Who is impacted (library users, service operators)?
               How do you handle this today and what is suboptimal?
       validations:
-          required: false
+          required: true
 
     - type: textarea
       id: proposed_solution
@@ -62,7 +62,7 @@ body:
               Summarize the feature and how it addresses the problem.
               Call out user experience, ergonomics, and expected outcomes.
       validations:
-          required: false
+          required: true
 
     - type: textarea
       id: api_design
@@ -134,6 +134,15 @@ body:
               - crate-x: similar API decisions
               - RFC/standard: <link>
               - Prior discussion: #123
+      validations:
+          required: false
+
+    - type: input
+      id: related_links
+      attributes:
+          label: Related issues/discussions/PRs
+          description: Link to any related GitHub issues, discussions, or PRs.
+          placeholder: "#123, https://github.com/org/repo/issues/123"
       validations:
           required: false
 
@@ -251,7 +260,7 @@ body:
               - [ ] Feature is gated behind "xyz" Cargo feature
               - [ ] No public API breaking changes without deprecation path
       validations:
-          required: false
+          required: true
 
     - type: checkboxes
       id: contribution_readiness
