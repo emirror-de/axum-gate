@@ -1,5 +1,6 @@
 use axum_gate::accounts::AccountInsertService;
 use axum_gate::accounts::AccountRepository;
+use axum_gate::authz::AccessHierarchy;
 use axum_gate::codecs::jwt::{JsonWebToken, JsonWebTokenOptions, JwtClaims, RegisteredClaims};
 use axum_gate::hashing::argon2::Argon2Hasher;
 use axum_gate::prelude::*;
@@ -14,11 +15,59 @@ use axum::response::IntoResponse;
 use axum::routing::{Router, get, post};
 use chrono::{Duration, Utc};
 use sea_orm::{ConnectionTrait, Database, DatabaseConnection, DbBackend, Schema};
+use serde::{Deserialize, Serialize};
+use strum::{Display, EnumString};
 use tracing::debug;
 
 const DATABASE_URL: &str = "sqlite::memory:";
 // Use the following if you want to see what is stored
 //const DATABASE_URL: &str = "sqlite:auth-node.sqlite3?mode=rwc";
+
+/// A custom role definition.
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    Debug,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+)]
+pub enum CustomRoleDefinition {
+    #[default]
+    Novice,
+    Experienced,
+    Expert,
+}
+
+// Mark the enum as hierarchical so higher roles supervise lower ones.
+// With Novice < Experienced < Expert, "require_role_or_supervisor(Experienced)"
+// will grant access to both Experienced and Expert users.
+impl AccessHierarchy for CustomRoleDefinition {}
+
+/// A custom group definition.
+#[derive(Eq, PartialEq, Copy, Clone, Serialize, Deserialize, Debug, EnumString, Display)]
+pub enum CustomGroupDefinition {
+    Maintenance,
+    Operations,
+    Administration,
+}
+
+impl CustomGroupDefinition {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Maintenance => "maintenance",
+            Self::Operations => "operations",
+            Self::Administration => "administration",
+        }
+    }
+}
 
 async fn setup_database_schema(db: &DatabaseConnection) {
     let schema = Schema::new(DbBackend::Sqlite);
@@ -81,7 +130,7 @@ async fn main() {
 
     AccountInsertService::insert("admin@example.com", "admin_password")
         .with_roles(vec![Role::Admin])
-        .with_groups(vec![Group::new("admin")])
+        .with_groups(vec![Group::new("admin"), Group::new("reporter")])
         .into_repositories(
             Arc::clone(&account_repository),
             Arc::clone(&secrets_repository),

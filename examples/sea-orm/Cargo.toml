@@ -9,9 +9,10 @@ axum = { workspace = true }
 axum-gate = { path = "../../", features = ["storage-seaorm"] }
 chrono = { workspace = true }
 dotenvy = { workspace = true }
-sea-orm = { workspace = true }
+sea-orm = { workspace = true, features = ["sqlx-sqlite", "runtime-tokio"] }
 sea-query = { workspace = true }
 serde = { workspace = true }
+strum = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
