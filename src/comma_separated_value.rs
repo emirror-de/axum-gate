@@ -44,6 +44,9 @@
 //! This module is only available when the `storage-seaorm` feature is enabled,
 //! as it's specifically designed for SeaORM database storage requirements.
 
+#[cfg(all(feature = "server", feature = "storage-seaorm"))]
+use std::{fmt::Display, str::FromStr};
+
 /// Conversion between a model and its CSV representation.
 pub trait CommaSeparatedValue
 where
@@ -53,4 +56,27 @@ where
     fn into_csv(self) -> String;
     /// Converts the given slice into the model.
     fn from_csv(value: &str) -> Result<Self, String>;
+}
+
+#[cfg(all(feature = "server", feature = "storage-seaorm"))]
+impl<R> CommaSeparatedValue for Vec<R>
+where
+    R: Display + FromStr,
+    <R as FromStr>::Err: Display,
+{
+    fn from_csv(value: &str) -> Result<Self, String> {
+        let mut role_str = value.split(',').collect::<Vec<&str>>();
+        let mut roles = Vec::with_capacity(role_str.len());
+        while let Some(r) = role_str.pop() {
+            roles.push(R::from_str(r).map_err(|e| e.to_string())?);
+        }
+        Ok(roles)
+    }
+
+    fn into_csv(self) -> String {
+        self.into_iter()
+            .map(|g| g.to_string())
+            .collect::<Vec<String>>()
+            .join(",")
+    }
 }

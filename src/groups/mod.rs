@@ -93,8 +93,8 @@
 //! ];
 //! ```
 
-#[cfg(all(feature = "server", feature = "storage-seaorm"))]
-use crate::comma_separated_value::CommaSeparatedValue;
+use std::{fmt::Display, str::FromStr};
+
 #[cfg(feature = "server")]
 pub use group_repository::GroupRepository;
 use serde::{Deserialize, Serialize};
@@ -172,21 +172,15 @@ impl GroupEntity for Group {
     }
 }
 
-#[cfg(all(feature = "server", feature = "storage-seaorm"))]
-impl CommaSeparatedValue for Vec<Group> {
-    fn from_csv(value: &str) -> Result<Self, String> {
-        Ok(value
-            .split(',')
-            .collect::<Vec<&str>>()
-            .iter()
-            .map(|g| Group::new(g))
-            .collect())
+impl FromStr for Group {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Group::new(s))
     }
+}
 
-    fn into_csv(self) -> String {
-        self.into_iter()
-            .map(|g| g.name().to_string())
-            .collect::<Vec<String>>()
-            .join(",")
+impl Display for Group {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
