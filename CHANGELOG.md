@@ -7,8 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.1] - 2026-09-14
+### 📝 Other Changes
+- Updated version numbers to v1.1.1 [405544d](https://github.com/emirror-de/axum-gate/commit/405544d3cb8665229ab404e374cc68c0db994658)
+
+- Replaced !ct_eq with ct_ne for better readability [85b62ef](https://github.com/emirror-de/axum-gate/commit/85b62ef950d6246c860ecf702090cac577967e19)
+
+- Use constant-time comparison for static bearer token [89707db](https://github.com/emirror-de/axum-gate/commit/89707db490cd0fc6c6d64dd93efcc03f7d822a51)
+
+- Accounts now implement PartialEq [d321429](https://github.com/emirror-de/axum-gate/commit/d3214295016a7b8385866e7c053a26af1af7b87d)
+
+
+
 ## [1.1.0] - 2025-11-30
 ### 📝 Other Changes
+- Dependency sea-orm-v2 now uses version 2.0.0-rc.19 [b5c6046](https://github.com/emirror-de/axum-gate/commit/b5c6046d259b42a890502f31737e6479ae73e9da)
+
+- Added version/* branches to CI [a4ccb93](https://github.com/emirror-de/axum-gate/commit/a4ccb930be5d558b43e581ace8799bb8c5e6b35e)
+
+- Updated CHANGELOG.md [128fc00](https://github.com/emirror-de/axum-gate/commit/128fc00acb5eadea58154ae9d89561e7f7c45656)
+
 - Updated version to v1.1.0 [bed9345](https://github.com/emirror-de/axum-gate/commit/bed9345b9fee70227ccc53efe2c854b64c1e468f)
 
 - Moved features for sea-orm to dev-dependencies [4a7082f](https://github.com/emirror-de/axum-gate/commit/4a7082fa45dc3da459f47f342d338bdf81cb5381)
