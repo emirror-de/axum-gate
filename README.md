@@ -5,6 +5,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Build Status](https://github.com/emirror-de/axum-gate/workflows/CI/badge.svg)](https://github.com/emirror-de/axum-gate/actions)
 
+> [!IMPORTANT]
+> **Maintenance status:** `axum-gate` is only passively maintained by only fixing security issues.
+> Looking ahead? Check out its successor, [**webgates**](https://github.com/emirror-de/webgates).
+
 Flexible, type-safe authentication and authorization for Axum using JWTs and optional OAuth2.
 - Cookie and bearer authentication
 - OAuth2 Authorization Code + PKCE flow that issues first-party JWT cookies
