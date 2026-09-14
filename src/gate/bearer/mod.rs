@@ -581,7 +581,7 @@ where
             return Box::pin(async move { Ok(Self::unauthorized()) });
         };
 
-        if !bool::from(provided.as_bytes().ct_eq(self.token.as_bytes())) {
+        if bool::from(provided.as_bytes().ct_ne(self.token.as_bytes())) {
             #[cfg(feature = "audit-logging")]
             audit::denied(None, "static_token_mismatch");
             return Box::pin(async move { Ok(Self::unauthorized()) });
