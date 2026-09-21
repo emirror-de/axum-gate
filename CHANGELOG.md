@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.1.1] - 2026-09-14
+## [1.1.1] - 2026-09-21
 ### 📝 Other Changes
+- Updated dependencies [e7ba3d4](https://github.com/emirror-de/axum-gate/commit/e7ba3d446692499a2c54658266e002e109af939c)
+
+- Cargo audit [87822b1](https://github.com/emirror-de/axum-gate/commit/87822b15de7189f7b99afbc650d314ffe073a697)
+
+- Updated some dependencies [3e0a6cf](https://github.com/emirror-de/axum-gate/commit/3e0a6cf9dc6674b0c73d98d274b93ac2503f07ba)
+
+- Updated CHANGELOG.md [a796d55](https://github.com/emirror-de/axum-gate/commit/a796d5572ea22e571c5019d3c6df1366573c35f6)
+
 - Updated version numbers to v1.1.1 [405544d](https://github.com/emirror-de/axum-gate/commit/405544d3cb8665229ab404e374cc68c0db994658)
 
 - Replaced !ct_eq with ct_ne for better readability [85b62ef](https://github.com/emirror-de/axum-gate/commit/85b62ef950d6246c860ecf702090cac577967e19)
